@@ -1,0 +1,42 @@
+package mds
+
+import (
+	"reflect"
+	"testing"
+)
+
+func Test_parseContents(t *testing.T) {
+	tests := []struct {
+		md         string
+		wantTokens []FieldToken
+		wantErr    bool
+	}{
+		{"a${word:b}c", []FieldToken{newfieldToken(TtText, "a"), newfieldToken(TtWord, "b"), newfieldToken(TtText, "c")}, false},
+		{"a${word:b}", []FieldToken{newfieldToken(TtText, "a"), newfieldToken(TtWord, "b")}, false},
+		{"${word:b}c", []FieldToken{newfieldToken(TtWord, "b"), newfieldToken(TtText, "c")}, false},
+		{"${word:b}c\\$", []FieldToken{newfieldToken(TtWord, "b"), newfieldToken(TtText, "c$")}, false},
+		{"${word:b}c\\}", []FieldToken{newfieldToken(TtWord, "b"), newfieldToken(TtText, "c}")}, false},
+		{"${word:b}c\\\\", []FieldToken{newfieldToken(TtWord, "b"), newfieldToken(TtText, "c\\")}, false},
+		{"${htmldocx:timestamp}c", []FieldToken{newfieldToken(TtHtmldocx, "timestamp"), newfieldToken(TtText, "c")}, false},
+		{"${xword:b}c", nil, true},
+		{"${word b}c", nil, true},
+		{"${word:}c", nil, true},
+		{"${:b}c", nil, true},
+		{"a${}c", nil, true},
+		{"a${c", nil, true},
+		{"a${b{c}}d", nil, true},
+		{"a${}c}", nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.md, func(t *testing.T) {
+			gotTokens, err := parseContents(tt.md)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseContents() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotTokens, tt.wantTokens) {
+				t.Errorf("parseContents() = %v, want %v", gotTokens, tt.wantTokens)
+			}
+		})
+	}
+}
