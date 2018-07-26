@@ -6,139 +6,162 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 )
-
-type lineType int
-
-const (
-	ltReadError lineType = iota
-	ltSyntaxError
-	ltEOF
-	ltEmpty
-	ltComment
-	ltSeparator
-	ltBlockType
-	ltContents
-	ltKVPair
-)
-
-//FIXME:  check for out of range
-func t2s(lt lineType) string {
-	desc := []string{"read error", "syntax error", "eof", "empty", "comment",
-		"separator", "block", "contents", "kv pair"}
-	return desc[lt]
-}
 
 //Parser type for parsing MDS script files and text
 type Parser struct {
 	ParserOptions
+	lineNum     int
+	currentLine string
+	nextLine    string
+	errorState  error
+	scanner     *bufio.Scanner
 }
 
 //NewParser returns an initialized MDS Parser
-func NewParser(options *ParserOptions) *Parser {
-	return &Parser{
+func NewParser(r io.Reader, options *ParserOptions) (*Parser, error) {
+	hp := &Parser{
 		ParserOptions: *options,
+		lineNum:       0,
+		scanner:       bufio.NewScanner(r),
 	}
+	//prime the scanner
+	if hp.scanner.Scan() {
+		hp.nextLine = hp.scanner.Text()
+		return hp, nil
+	}
+	//error from the start
+	if hp.scanner.Err() == nil { //eof reached
+		return nil, &errEOF{}
+	}
+	//read error
+	return nil, hp.scanner.Err()
 }
 
 //ParseFile parses an MDS script file
-func (hp *Parser) ParseFile(fileName string) (tokens TokenMap, err error) {
+func ParseFile(fileName string) (root *ttBlock, err error) {
 	file, err := os.Open(fileName)
 	if err != nil {
-		return throw(err, "")
+		return throw(err)
 	}
-	tokens, err = hp.Parse(file)
+	hp, err := NewParser(file, DefaultParserOptions())
 	if err != nil {
-		return throw(fmt.Errorf("error parsing file '%s': %s", fileName, err), "")
+		return throw(fmt.Errorf("error parsing file '%s': %s", fileName, err))
 	}
-	return tokens, nil
+	root, err = hp.parse()
+	if err != nil {
+		return throw(fmt.Errorf("error parsing file '%s': %s", fileName, err))
+	}
+	return root, nil
+}
+
+//Err return parser error state after last advance() call
+func (hp *Parser) Err() error {
+	return hp.errorState
 }
 
 //Parse parses an MDS source
 //FIXME: validate block name uniqueness
-func (hp *Parser) Parse(r io.Reader) (tokens TokenMap, err error) {
-	lineNum := 0
-	blockNum := 0
-	scanner := bufio.NewScanner(r)
-	if err := hp.readFirstLine(scanner); err != nil {
-		return throw(err, "")
-	}
-	//readFirstLine successed, so we read first line and started first block
-	lineNum++
-	blockNum++
-	blockName := ""
-	tokens = newTokenMap()
-	parseBlock := func() (bool, error) { //false + nil=EOF, false +!nil=error, true+ nil continue
-		firstLine := true
-	loop:
-		for {
-			lt, linesRead, key, value := hp.readNextLine(scanner, false /*outside a content block*/)
-			lineNum += linesRead
-			if hp.Debug >= DebugAll {
-				fmt.Println(lineNum, t2s(lt), "lines-read", linesRead, key, value) //DEBUG
-			}
-			if firstLine {
-				switch lt {
-				case ltEOF:
-					return false, nil //no more data
-				case ltSyntaxError, ltReadError:
-					return false, fmt.Errorf("line %d: %s", lineNum, value)
-				case ltEmpty, ltComment:
-					continue //skip
-				case ltBlockType:
-					blockName = value
-					//TODO: check for blockname uniqueness
-					tokens.addEntry(blockName, "name", blockName)
-					tokens.addEntry(blockName, "type", key)
-					tokens.addEntry(blockName, "order", strconv.Itoa(blockNum))
-					firstLine = false
-					continue
-				default:
-					return false, fmt.Errorf("line %d: expected block type declaration, found '%s'", lineNum, key)
-				}
-			}
-			switch lt {
-			case ltBlockType:
-				return false, fmt.Errorf("line %d: block type declaration '%s' not allowed", lineNum, key)
-			case ltEOF:
-				if blockName != "" {
-					return false, fmt.Errorf("line %d:+++ not found at end of section %s", lineNum, blockName)
-				}
-				return false, nil
-			case ltReadError, ltSyntaxError:
-				return false, fmt.Errorf("line %d: %s", lineNum, value)
-			case ltKVPair:
-				tokens.addEntry(blockName, key, value)
-			case ltContents:
-				tokens.addEntry(blockName, "contents", value) //ltContents also indicate end of block
-				fallthrough
-			case ltSeparator:
-				blockName = "" //no longer in this section
-				blockNum++
-				break loop
-			case ltComment, ltEmpty:
-				continue
-			default:
-				panic(fmt.Sprintf("unhandled token type in parseBlock():line %d-tt %d,%s,%s",
-					lineNum, lt, key, value))
-			}
-
-		}
-		return true, nil
-	}
+func (hp *Parser) parse() (root *ttBlock, err error) {
+	root = newTokenBlock("root")
 	for {
-		do, err := parseBlock()
+		do, err := hp.parseBlock(root)
 		if err != nil {
-			return throw(err, "")
+			return throw(err)
 		}
 		if !do {
 			break
 		}
 	}
-	return tokens, nil
+	return root, nil
 }
+
+//first time called there is always something to read
+func (hp *Parser) readNextLine() bool {
+	hp.currentLine = hp.nextLine
+	if hp.errorState != nil { //we have reached eof or encountered an error in previous call
+		return false
+	}
+	if hp.scanner.Scan() {
+		hp.nextLine = hp.scanner.Text()
+		return true
+	}
+	//there was an error, set parser.errorState
+	if hp.scanner.Err() == nil { //eof reached
+		hp.errorState = &errEOF{}
+	} else { //read error
+		hp.errorState = hp.scanner.Err()
+	}
+	hp.nextLine = ""
+	return false
+}
+
+func (hp *Parser) advance() token {
+	iFace := hp.parseNextLine()
+	hp.lineNum += iFace.linesRead()
+	if hp.Debug >= DebugAll {
+		/*DEBUG*/ fmt.Println(hp.lineNum, iFace)
+	}
+	return iFace
+}
+
+//parseBlock return values: false+nil=EOF, false+!nil=error,true+ nil continue
+func (hp *Parser) parseBlock(block *ttBlock) (bool, error) {
+	var openKVP token
+	for {
+		iFace := hp.advance()
+		switch token := iFace.(type) {
+		case *ttReadError:
+			return false, fmt.Errorf("line %d: %s", hp.lineNum, token.err)
+		case *ttSyntaxError:
+			return false, fmt.Errorf("line %d: %s", hp.lineNum, token.err)
+		case *ttComment, *ttEmpty:
+			continue
+		case *ttEOF:
+			if openKVP != nil {
+				block.addChild(openKVP) //add the pending token
+			}
+			return false, nil
+		case *ttBlock:
+			if openKVP != nil {
+				block.addChild(openKVP) //add the pending token
+			}
+			return hp.parseBlock(block.addChild(token))
+		case *ttList:
+			if openKVP == nil {
+				return false, fmt.Errorf("line %d: '-' outside a list", hp.lineNum)
+			}
+
+			openKVP = nil
+		case *ttKVPair:
+			if token.value != "" {
+				if openKVP != nil {
+					block.addChild(openKVP) //add the pending token
+				}
+				block.addChild(token)
+				continue
+			}
+			//value is empty, is this the start of a list or a free text entry
+			//store current token to add if if it is not
+			openKVP = token
+		default:
+			panic(fmt.Sprintf("unhandled token type in parseBlock():line %d", hp.lineNum))
+		}
+	}
+}
+
+// func (hp *Parser) parseList(name string, list *ttList) (bool, error) {
+// 	var openKVP token
+// 	list.setName(name) //first name the list token
+// 	for {
+// 		iFace := hp.advance()
+// 		switch token := iFace.(type) {
+// 		case ttList:
+
+// 		}
+// 	}
+// }
 
 //ParseContents parses contents fields
 func (hp *Parser) ParseContents(src string) (tokens []FieldToken, err error) {
@@ -161,88 +184,118 @@ func (hp *Parser) DecodeAttribs(in interface{}, attribs string) error {
 	return decode(in, block)
 }
 
-func (hp *Parser) readNextLine(scanner *bufio.Scanner, inContentBlock bool) (lt lineType, linesRead int, key, value string) {
-	if !scanner.Scan() {
-		switch scanner.Err() {
-		case nil: //eof reached
-			return ltEOF, 0, "", ""
-		default: //read error, return its description
-			return ltReadError, 0, "", scanner.Err().Error()
+func (hp *Parser) parseNextLine() token {
+	if !hp.readNextLine() {
+		switch hp.Err().(type) {
+		case *errEOF: //eof reached
+			return &sEOF
+		default: //read error, return it
+			return sReadError.setError(hp.scanner.Err())
 		}
 	}
-	line := scanner.Text()
+	line := hp.currentLine
 	if hp.Debug >= DebugAll {
 		fmt.Println(":", line)
 	}
 	trimmed := strings.TrimSpace(line)
-	if inContentBlock { //in Contents only '+++' has special meaning
-		if strings.HasPrefix(trimmed, "+++") {
-			return ltSeparator, 1, "", ""
-		}
-		return ltContents, 1, "", line
-	}
-
+	// if inContentBlock { //in Contents only '+++' has special meaning
+	// 	// if strings.HasPrefix(trimmed, "+++") {
+	// 	// 	return ltSeparator, 1, "", ""
+	// 	// }
+	// 	return ltContents, 1, "", line
+	// }
 	switch {
+	case strings.HasPrefix(trimmed, "-"):
+		item := line[strings.IndexByte(line, '-'):]
+		return newList(item)
 	case trimmed == "":
-		return ltEmpty, 1, "", ""
+		return &sEmpty
 	case strings.HasPrefix(trimmed, "//"):
-		return ltComment, 1, "", line
-	case strings.HasPrefix(trimmed, "+++"):
-		return ltSeparator, 1, "", ""
+		return &sComment
 	default:
+		hd := getHeading(line)
+		if hd.level > 0 { //we found a heading
+			return newTokenBlock(hd.name).setLevel(hd.level)
+		}
 		parts := strings.SplitN(line, ":", 2) //split on the first colon
 		if len(parts) != 2 {
-			fmt.Println("split", len(parts), parts)
-			return ltSyntaxError, 1, "", "likely missing ':'"
+			//fmt.Println("split", len(parts), parts)
+			return sSyntaxError.setError("likely missing ':'")
 		}
 		//found key:value pair
-		key = trimLower(parts[0])
-		value = trimLower(parts[1])
-		switch key {
-		case "file", "settings", "document", "section", "header", "footer":
-			return ltBlockType, 1, key, value
-		case "contents": //in content the only valid values are ltSeparator or text
-			if strings.TrimSpace(value) != "" { // text after Contents is not allowed
-				return ltSyntaxError, 1, "", "text after tag 'Contents' is not allowed"
-			}
-			contents := ""
-			linesRead = 1 //we just read one line
-			linesInBlock := 0
-			for { //accumulate all Contents content until +++ or an error
-				lt, linesInBlock, key, value = hp.readNextLine(scanner, true)
-				switch lt {
-				case ltSeparator:
-					return ltContents, linesRead + 1 /*previously read lines plus this line*/, key, contents
-				case ltEOF, ltReadError:
-					return ltSyntaxError, linesRead, "", "Contents must end with +++"
-				default:
-					linesRead += linesInBlock
-					contents += value
-				}
-			}
-		default:
-			return ltKVPair, 1, key, value //some other key:value pair
-		}
+		key := trimLower(parts[0])
+		value := trimLower(parts[1])
+		return newKVPair(key, value) //some other key:value pair
+
+		// switch key {
+		// case "file", "settings", "document", "section", "header", "footer":
+		// 	return ltBlockType, 1, key, v
+		// case "contents": //in content the only valid values are ltSeparator or text
+		// 	if strings.TrimSpace(value) != "" { // text after Contents is not allowed
+		// 		return ltSyntaxError, 1, "", "text after tag 'Contents' is not allowed"
+		// 	}
+		// 	contents := ""
+		// 	linesRead = 1 //we just read one line
+		// 	linesInBlock := 0
+		// 	for { //accumulate all Contents content until +++ or an error
+		// 		lt, linesInBlock, key, value = hp.parseNextLine(scanner, true)
+		// 		switch lt {
+		// 		case ltSeparator:
+		// 			return ltContents, linesRead + 1 /*previously read lines plus this line*/, key, contents
+		// 		case ltEOF, ltReadError:
+		// 			return ltSyntaxError, linesRead, "", "Contents must end with +++"
+		// 		default:
+		// 			linesRead += linesInBlock
+		// 			contents += value
+		// 		}
+		// 	}
+		// default:
+
+		// }
 	}
 }
 
-func (hp *Parser) readFirstLine(scanner *bufio.Scanner) error {
-	lt, _, _, value := hp.readNextLine(scanner, false /*outside a content block*/)
-	switch lt {
-	case ltSeparator:
-		return nil
-	case ltEOF:
-		return fmt.Errorf("file is empty")
-	case ltReadError, ltSyntaxError:
-		return fmt.Errorf("error reading first line: " + value)
-	default: //anything else is error
-		return fmt.Errorf("file must start with '+++'")
+// func (hp *Parser) readFirstLine(scanner *bufio.Scanner) error {
+// 	lt, _, _, value := hp.parseNextLine(scanner, false /*outside a content block*/)
+// 	switch lt {
+// 	case ltSeparator:
+// 		return nil
+// 	case ltEOF:
+// 		return fmt.Errorf("file is empty")
+// 	case ltReadError, ltSyntaxError:
+// 		return fmt.Errorf("error reading first line: " + value)
+// 	default: //anything else is error
+// 		return fmt.Errorf("file must start with '+++'")
+// 	}
+// }
+
+//FIXME: replace with one interface arg
+func throw(value interface{}) (*ttBlock, error) {
+	switch unboxed := value.(type) {
+	case string:
+		return nil, fmt.Errorf("%s", unboxed)
+	case error:
+		return nil, fmt.Errorf("%s", unboxed)
+	default:
+		panic("unsupported argument type in throw()")
 	}
 }
 
-func throw(err error, msg string) (TokenMap, error) {
-	if err != nil {
-		return nil, fmt.Errorf("%s", err)
+type heading struct {
+	name  string
+	level int
+}
+
+func getHeading(line string) heading {
+	i := 0
+	for ; i < len(line) && line[i] == '#'; i++ { //no utf8 needed, we are only looking for a byte #
 	}
-	return nil, fmt.Errorf("%s", msg)
+	if i == 0 { //# not found, not a heading
+		return heading{name: "", level: 0}
+	}
+	name := trimLower(line[i:])
+	if name == "" { //no name, heading but invalid
+		return heading{name: "", level: -1}
+	}
+	return heading{name: name, level: i}
 }

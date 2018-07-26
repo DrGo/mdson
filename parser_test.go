@@ -2,11 +2,12 @@ package mds
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 )
 
-func Test_parseHDScript(t *testing.T) {
+func Test_Parser_parse(t *testing.T) {
 	tests := []struct {
 		name    string
 		src     string
@@ -18,26 +19,27 @@ func Test_parseHDScript(t *testing.T) {
 		{"correct", full, "general", "version", "1.0.0", false},
 
 		//the following should produce an error, wantErr = true
-		{"wrong block type", wrongBlockType, "general", "", "", true},
+		// {"wrong block type", wrongBlockType, "general", "", "", true},
 	}
-	hp := NewParser(DefaultParserOptions().SetDebug(DebugAll))
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotTokens, err := hp.Parse(strings.NewReader(tt.src))
+			hp, _ := NewParser(strings.NewReader(tt.src), DefaultParserOptions().SetDebug(DebugAll))
+			gotTokens, err := hp.parse()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseHDScript() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			fmt.Println(gotTokens)
-			if gotv := gotTokens[tt.block][tt.wantk]; gotv != tt.wantv {
-				t.Errorf("parseHDScript() = %v, want %v", gotv, tt.wantv)
+			if err == nil {
+				fmt.Printf("******************\n%s\n", gotTokens)
 			}
+			// if gotv := gotTokens[tt.block][tt.wantk]; gotv != tt.wantv {
+			// 	t.Errorf("parseHDScript() = %v, want %v", gotv, tt.wantv)
+			// }
 		})
 	}
 }
 
-const full = `+++
-Settings: general
+const full = `# Settings: general
 Version: 1.0.0
 Command: run
 OverWriteOutputFile: true
@@ -45,8 +47,8 @@ OutputFileName: fromconfig.docx
 Debug: 2
 WorkDirName: 
 //comments: empty lines ignored
-+++
-Settings: rosewood
+
+## Settings: rosewood
 ConvertOldVersions: false
 ConvertFromVersion: v01
 DoNotInlineCSS: false
@@ -57,39 +59,66 @@ ReportAllError: false
 SaveConvertedFile: false
 StyleSheetName: 
 TrimCellContents: false
-+++
 
-Document: document1
+## Document: document1
 TemplateFileName: 
 InputDir: 
-+++
-Section: section1
-InputDir: /Users/salah/Dropbox/code/go/src/github.com/drgo/htmldocx/cmd
-AddPageBreakAfterEachInputFile: true
-Size: Width: 12240, Height: 15840, Orientation: portrait
-Margins: Top: 10, Right: 1440, Bottom: 1440, Left: 1440,  Header: 360, Footer: 360,  Gutter: 0
-Headers: default: header1
-Footers: default: footer1
-Contents: 
-${include: tab1old.html}${include: test.html}
-+++   
 
-Header: header1
-InputDir: 
-Contents:
-${htmldocx: timestamp} text in next line is created using raw xml ${xml:<w:p><w:rPr><w:tab 
-w:val="right" w:leader="dot" w:pos="2160"/></w:rPr><w:r><w:rPr><w:b/><w:i/><w:color 
-w:val="8300ff"/><w:rFonts w:ascii="Courier New" w:hAnsi="Times New Roman" w:cs="Times New 
-Roman"/></w:rPr><w:tab/><w:tab/><w:t>tabbed-bold-italic-magenta-Courier New</w:t></w:r></w:p>}
-+++
-
-Footer: footer1
-InputDir: "empty"
-Contents:
-${word: PAGE}
-some other text
-+++`
+### Section: section1
+ID: section1
+contents: "hello"
+InputFiles:
+- file1
+- file2
+- file3
+`
 
 const wrongBlockType = `+++
 xSettings: general
 Version: 1.0.0`
+
+func Test_getHeading(t *testing.T) {
+	tests := []struct {
+		name string
+		line string
+		want heading
+	}{
+		{"0H", "Document", heading{name: "", level: -1}},
+		{"1 H", " #Document", heading{name: "", level: -1}},
+		{"1H empty", "# ", heading{name: "", level: -1}},
+		{"1H ", "#  Document", heading{name: "document", level: 1}},
+		{"1H", "#Document", heading{name: "document", level: 1}},
+		{"3H", "###Document", heading{name: "document", level: 3}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getHeading(tt.line); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getHeading() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseFile(t *testing.T) {
+	const fileName = "/Users/salah/Dropbox/code/go/src/github.com/drgo/mds/carpenter.mdon"
+	tests := []struct {
+		name     string
+		fileName string
+		wantRoot *ttBlock
+		wantErr  bool
+	}{
+		{"", fileName, nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotRoot, err := ParseFile(tt.fileName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseFile() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotRoot, tt.wantRoot) {
+				t.Errorf("ParseFile() = %v, want %v", gotRoot, tt.wantRoot)
+			}
+		})
+	}
+}
