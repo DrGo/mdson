@@ -30,7 +30,10 @@ func Test_Parser_parse(t *testing.T) {
 				return
 			}
 			if err == nil {
-				fmt.Printf("******************\n%s\n", gotTokens)
+				file, _ := gotTokens.children[0].(*ttBlock)
+				for _, b := range file.children {
+					fmt.Printf("******************\n%s\n", b)
+				}
 			}
 			// if gotv := gotTokens[tt.block][tt.wantk]; gotv != tt.wantv {
 			// 	t.Errorf("parseHDScript() = %v, want %v", gotv, tt.wantv)
@@ -39,7 +42,7 @@ func Test_Parser_parse(t *testing.T) {
 	}
 }
 
-const full = `# Settings: general
+const full = `# file: file1
 Version: 1.0.0
 Command: run
 OverWriteOutputFile: true
@@ -68,9 +71,17 @@ InputDir:
 ID: section1
 contents: "hello"
 InputFiles:
+
+### Section: section2
+ID: section2
+contents: "goodbye"
+InputFiles:
 - file1
 - file2
 - file3
+
+## Documen: document2
+Title: new document
 `
 
 const wrongBlockType = `+++
@@ -122,3 +133,7 @@ func TestParseFile(t *testing.T) {
 		})
 	}
 }
+
+// - file1
+// - file2
+// - file3

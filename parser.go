@@ -16,6 +16,7 @@ type Parser struct {
 	currentLine string
 	nextLine    string
 	errorState  error
+	pendingLeaf token
 	scanner     *bufio.Scanner
 }
 
@@ -79,11 +80,13 @@ func (hp *Parser) parse() (root *ttBlock, err error) {
 
 //first time called there is always something to read
 func (hp *Parser) readNextLine() bool {
-	hp.currentLine = hp.nextLine
 	if hp.errorState != nil { //we have reached eof or encountered an error in previous call
+		hp.currentLine = ""
+		hp.nextLine = ""
 		return false
 	}
 	if hp.scanner.Scan() {
+		hp.currentLine = hp.nextLine
 		hp.nextLine = hp.scanner.Text()
 		return true
 	}
@@ -93,22 +96,26 @@ func (hp *Parser) readNextLine() bool {
 	} else { //read error
 		hp.errorState = hp.scanner.Err()
 	}
-	hp.nextLine = ""
-	return false
+	hp.currentLine = hp.nextLine
+	return true //stil ok for this iteration
 }
 
 func (hp *Parser) advance() token {
 	iFace := hp.parseNextLine()
 	hp.lineNum += iFace.linesRead()
 	if hp.Debug >= DebugAll {
-		/*DEBUG*/ fmt.Println(hp.lineNum, iFace)
+		switch t := iFace.(type) {
+		case *ttKVPair:
+		default:
+			/*DEBUG*/ fmt.Println(hp.lineNum, t)
+		}
 	}
 	return iFace
 }
 
 //parseBlock return values: false+nil=EOF, false+!nil=error,true+ nil continue
-func (hp *Parser) parseBlock(block *ttBlock) (bool, error) {
-	var openKVP token
+func (hp *Parser) parseBlock(parent *ttBlock) (bool, error) {
+	// var openKVP token
 	for {
 		iFace := hp.advance()
 		switch token := iFace.(type) {
@@ -119,49 +126,78 @@ func (hp *Parser) parseBlock(block *ttBlock) (bool, error) {
 		case *ttComment, *ttEmpty:
 			continue
 		case *ttEOF:
-			if openKVP != nil {
-				block.addChild(openKVP) //add the pending token
-			}
 			return false, nil
 		case *ttBlock:
-			if openKVP != nil {
-				block.addChild(openKVP) //add the pending token
+			var ok bool
+			var err error
+			fmt.Println("parseblock: parent", parent.name, parent.level, "current", token.name, token.level)
+		loop:
+			for { //loop to process all children
+				switch {
+				case token.level-parent.level > 1: ////handle nesting errors
+					return false, fmt.Errorf("line %d: block too deeply nested for its level", hp.lineNum)
+				case token.level-parent.level == 1: // this is a child or we have a pending child
+					ok, err = hp.parseBlock(token) //parse it passing this token as a parent
+					if err != nil {
+						return false, err
+					}
+					parent.addChild(token)
+					if !ok {
+						break loop
+					}
+					if hp.pendingLeaf != nil {
+						token, _ = hp.pendingLeaf.(*ttBlock)
+						hp.pendingLeaf = nil
+						continue
+					}
+				default: //sibling or higher
+					hp.pendingLeaf = token //park it in pendingLeaf for ancestors to handle
+					return true, nil
+				}
 			}
-			return hp.parseBlock(block.addChild(token))
-		case *ttList:
-			if openKVP == nil {
-				return false, fmt.Errorf("line %d: '-' outside a list", hp.lineNum)
-			}
-
-			openKVP = nil
+		case *ttListItem:
+			return false, fmt.Errorf("line %d: '-' outside a list", hp.lineNum)
 		case *ttKVPair:
 			if token.value != "" {
-				if openKVP != nil {
-					block.addChild(openKVP) //add the pending token
-				}
-				block.addChild(token)
+				parent.addChild(token)
 				continue
 			}
 			//value is empty, is this the start of a list or a free text entry
 			//store current token to add if if it is not
-			openKVP = token
+			_, err := hp.parseListOrFreeText(parent, token)
+			if err != nil {
+				return false, fmt.Errorf("line %d: %s", hp.lineNum, err)
+			}
 		default:
 			panic(fmt.Sprintf("unhandled token type in parseBlock():line %d", hp.lineNum))
 		}
 	}
 }
 
-// func (hp *Parser) parseList(name string, list *ttList) (bool, error) {
-// 	var openKVP token
-// 	list.setName(name) //first name the list token
-// 	for {
-// 		iFace := hp.advance()
-// 		switch token := iFace.(type) {
-// 		case ttList:
-
-// 		}
-// 	}
-// }
+func (hp *Parser) parseListOrFreeText(block *ttBlock, openKVP *ttKVPair) (bool, error) {
+	nextLine := strings.TrimSpace(hp.nextLine)
+	switch {
+	case strings.HasPrefix(nextLine, "-"): //nextline starts with '-' must be a list
+		list := newList(openKVP.key) //use the key of the open kvp as the list's name
+		i := 0
+		for strings.HasPrefix(nextLine, "-") {
+			i++
+			fmt.Println("iteration:", i, "current line", hp.currentLine, "next line", hp.nextLine)
+			iFace := hp.advance()
+			fmt.Println("iteration:", i, "current line", hp.currentLine, "next line", hp.nextLine)
+			li, ok := iFace.(*ttListItem)
+			if !ok { //sanity check
+				return false, fmt.Errorf("something went wrong in parsing list items in line %d", hp.lineNum)
+			}
+			list.addItem(li)
+			nextLine = strings.TrimSpace(hp.nextLine)
+		}
+		block.addChild(list)
+	default: //this was just an empty kvp, add
+		block.addChild(openKVP)
+	}
+	return true, nil
+}
 
 //ParseContents parses contents fields
 func (hp *Parser) ParseContents(src string) (tokens []FieldToken, err error) {
@@ -194,9 +230,9 @@ func (hp *Parser) parseNextLine() token {
 		}
 	}
 	line := hp.currentLine
-	if hp.Debug >= DebugAll {
-		fmt.Println(":", line)
-	}
+	// if hp.Debug >= DebugAll {
+	// 	fmt.Println(":", line)
+	// }
 	trimmed := strings.TrimSpace(line)
 	// if inContentBlock { //in Contents only '+++' has special meaning
 	// 	// if strings.HasPrefix(trimmed, "+++") {
@@ -207,7 +243,8 @@ func (hp *Parser) parseNextLine() token {
 	switch {
 	case strings.HasPrefix(trimmed, "-"):
 		item := line[strings.IndexByte(line, '-'):]
-		return newList(item)
+		item = strings.Trim(item, " -")
+		return newListItem(item)
 	case trimmed == "":
 		return &sEmpty
 	case strings.HasPrefix(trimmed, "//"):
@@ -215,6 +252,9 @@ func (hp *Parser) parseNextLine() token {
 	default:
 		hd := getHeading(line)
 		if hd.level > 0 { //we found a heading
+			if hp.Debug >= DebugAll {
+				/*DEBUG*/ fmt.Println(":", line)
+			}
 			return newTokenBlock(hd.name).setLevel(hd.level)
 		}
 		parts := strings.SplitN(line, ":", 2) //split on the first colon

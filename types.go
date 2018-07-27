@@ -21,6 +21,7 @@ const (
 	ltEmpty
 	ltComment
 	ltList
+	ltListItem
 	ltBlock
 	ltContents
 	ltKVPair
@@ -54,9 +55,6 @@ func (bt *ttBase) setLinesRead(value int) *ttBase {
 	return bt
 }
 
-// var ltDescList = []string{"read error", "syntax error", "eof", "empty", "comment",
-// 	"list", "block", "contents", "kv pair"}
-
 type (
 	ttReadError struct {
 		ttBase
@@ -69,7 +67,11 @@ type (
 	ttList        struct {
 		ttBase
 		name  string
-		items []string
+		items []*ttListItem
+	}
+	ttListItem struct {
+		ttBase
+		item string
 	}
 	ttBlock struct {
 		ttBase
@@ -97,8 +99,24 @@ func (re *ttReadError) setError(value interface{}) *ttReadError {
 	return re
 }
 
+const tokDescLine = "type=%s, linesread=%d, key=%s value=%s\n"
+
+func (re ttReadError) String() string {
+	return fmt.Sprintf(tokDescLine, "read error", re.linesRead(), "err", re.err)
+}
+
 func newTokenBlock(name string) *ttBlock {
-	return &ttBlock{ttBase: ttBase{}, name: name}
+	return &ttBlock{ttBase: ttBase{lines: 1}, name: name}
+}
+
+func (blk ttBlock) String() string {
+	var sb strings.Builder
+	sb.Grow(10 * 1024)
+	sb.WriteString(fmt.Sprintf(tokDescLine, "block", blk.linesRead(), blk.name, strconv.Itoa(blk.level)))
+	for _, t := range blk.children {
+		sb.WriteString(" " + t.String())
+	}
+	return sb.String()
 }
 
 func (blk *ttBlock) setName(value string) *ttBlock {
@@ -130,9 +148,9 @@ func (kvp *ttKVPair) setValue(value string) *ttKVPair {
 	return kvp
 }
 
-func newList(item string) *ttList {
-	list := &ttList{ttBase: ttBase{lines: 1}}
-	list.items = append(list.items, item)
+func newList(name string) *ttList {
+	list := &ttList{ttBase: ttBase{lines: 1}, name: name}
+	//list.items = append(list.items, item)
 	return list
 }
 
@@ -141,10 +159,13 @@ func (list *ttList) setName(value string) *ttList {
 	return list
 }
 
-const tokDescLine = "type=%s, linesread=%d, key=%s value=%s\n"
+func (list *ttList) addItem(li *ttListItem) *ttList {
+	list.items = append(list.items, li)
+	return list
+}
 
-func (re ttReadError) String() string {
-	return fmt.Sprintf(tokDescLine, "read error", re.linesRead(), "err", re.err)
+func newListItem(item string) *ttListItem {
+	return &ttListItem{ttBase: ttBase{lines: 1}, item: item}
 }
 
 func (se ttSyntaxError) String() string {
@@ -163,18 +184,22 @@ func (co ttComment) String() string {
 	return fmt.Sprintf(tokDescLine, "comment", co.linesRead(), "", "")
 }
 
-func (blk ttBlock) String() string {
+func (kvp ttKVPair) String() string {
+	return fmt.Sprintf(tokDescLine, "KV pair", kvp.linesRead(), kvp.key, kvp.value)
+}
+
+func (list ttList) String() string {
 	var sb strings.Builder
 	sb.Grow(10 * 1024)
-	sb.WriteString(fmt.Sprintf(tokDescLine, "block", blk.linesRead(), blk.name, strconv.Itoa(blk.level)))
-	for _, t := range blk.children {
-		sb.WriteString(t.String())
+	sb.WriteString(fmt.Sprintf(tokDescLine, "list", list.linesRead(), list.name, ""))
+	for _, li := range list.items {
+		sb.WriteString(" " + li.String())
 	}
 	return sb.String()
 }
 
-func (kvp ttKVPair) String() string {
-	return fmt.Sprintf(tokDescLine, "KV pair", kvp.linesRead(), kvp.key, kvp.value)
+func (li ttListItem) String() string {
+	return fmt.Sprintf(tokDescLine, "List item", li.linesRead(), "", li.item)
 }
 
 //create sentinel values to simply returning
