@@ -1,4 +1,4 @@
-package mds
+package mdson
 
 const (
 	//DebugSilent print errors only

@@ -1,4 +1,4 @@
-package mds
+package mdson
 
 import (
 	"fmt"
@@ -16,10 +16,8 @@ func Test_Parser_parse(t *testing.T) {
 		wantv   string
 		wantErr bool
 	}{
+		//TODO: revize this test or delete
 		{"correct", full, "general", "version", "1.0.0", false},
-
-		//the following should produce an error, wantErr = true
-		// {"wrong block type", wrongBlockType, "general", "", "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -30,10 +28,8 @@ func Test_Parser_parse(t *testing.T) {
 				return
 			}
 			if err == nil {
-				file, _ := gotTokens.children[0].(*ttBlock)
-				for _, b := range file.children {
-					fmt.Printf("******************\n%s\n", b)
-				}
+				node := gotTokens.children[0].(*ttKVPair)
+				fmt.Printf("******************\n%s\n", node)
 			}
 			// if gotv := gotTokens[tt.block][tt.wantk]; gotv != tt.wantv {
 			// 	t.Errorf("parseHDScript() = %v, want %v", gotv, tt.wantv)
@@ -41,48 +37,6 @@ func Test_Parser_parse(t *testing.T) {
 		})
 	}
 }
-
-const full = `# file: file1
-Version: 1.0.0
-Command: run
-OverWriteOutputFile: true
-OutputFileName: fromconfig.docx
-Debug: 2
-WorkDirName: 
-//comments: empty lines ignored
-
-## Settings: rosewood
-ConvertOldVersions: false
-ConvertFromVersion: v01
-DoNotInlineCSS: false
-MandatoryCol: false
-MaxConcurrentWorkers: 30
-PreserveWorkFiles: false
-ReportAllError: false
-SaveConvertedFile: false
-StyleSheetName: 
-TrimCellContents: false
-
-## Document: document1
-TemplateFileName: 
-InputDir: 
-
-### Section: section1
-ID: section1
-contents: "hello"
-InputFiles:
-
-### Section: section2
-ID: section2
-contents: "goodbye"
-InputFiles:
-- file1
-- file2
-- file3
-
-## Documen: document2
-Title: new document
-`
 
 const wrongBlockType = `+++
 xSettings: general
@@ -111,7 +65,7 @@ func Test_getHeading(t *testing.T) {
 }
 
 func TestParseFile(t *testing.T) {
-	const fileName = "/Users/salah/Dropbox/code/go/src/github.com/drgo/mds/carpenter.mdon"
+	const fileName = "/Users/salah/Dropbox/code/go/src/github.com/drgo/mdson/carpenter.mdson"
 	tests := []struct {
 		name     string
 		fileName string
@@ -133,7 +87,3 @@ func TestParseFile(t *testing.T) {
 		})
 	}
 }
-
-// - file1
-// - file2
-// - file3

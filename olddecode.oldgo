@@ -1,0 +1,70 @@
+package mdson
+
+// Unmarshal parses the JSON-encoded data and stores the result
+// in the value pointed to by v. If v is nil or not a pointer,
+// Unmarshal returns an InvalidUnmarshalError.
+
+// To unmarshal JSON into a struct, Unmarshal matches incoming object
+// keys to the keys used by Marshal (either the struct field name or its tag),
+// preferring an exact match but also accepting a case-insensitive match. By
+// default, object keys which don't have a corresponding struct field are
+// ignored (see Decoder.DisallowUnknownFields for an alternative).
+
+// To unmarshal a JSON array into a slice, Unmarshal resets the slice length
+// to zero and then appends each element to the slice.
+// As a special case, to unmarshal an empty JSON array into a slice,
+// Unmarshal replaces the slice with a new empty slice.
+
+// If a JSON value is not appropriate for a given target type,
+// or if a JSON number overflows the target type, Unmarshal
+// skips that field and completes the unmarshaling as best it can.
+// If no more serious errors are encountered, Unmarshal returns
+// an UnmarshalTypeError describing the earliest such error. In any
+// case, it's not guaranteed that all the remaining fields following
+// the problematic one will be unmarshaled into the target object.
+
+// func parseAttribs(s string) (TokenBlock, error) {
+// 	entries := strings.Split(s, ",")
+// 	attribs := make(TokenBlock, 10)
+// 	for _, entry := range entries {
+// 		parts := strings.SplitN(entry, ":", 2) //split on the first colon
+// 		if len(parts) != 2 {
+// 			return nil, fmt.Errorf("invalid value for '%s' likely missing ':'", entry)
+// 		}
+// 		attribs[trimLower(parts[0])] = trimLower(parts[1])
+// 	}
+// 	return attribs, nil
+// }
+
+// //decode fills a struct (passed an an interface) from a map of key-value pairs
+// func decode(in interface{}, block TokenBlock) error {
+// 	if len(block) == 0 {
+// 		return nil
+// 	}
+// 	//FIXME: validate in is not null reflect.IsNull
+// 	st := reflect.ValueOf(in).Elem()
+// 	//build a map of struc fields keyed by either tag name or field name
+// 	//TODO: test that tagging struct works
+// 	flds := make(map[string]reflect.Value, 10)
+// 	for i := 0; i < st.NumField(); i++ {
+// 		fldInfo := st.Type().Field(i)
+// 		fldName := trimLower(fldInfo.Tag.Get("mds"))
+// 		if fldName == "" { //no tag
+// 			fldName = trimLower(fldInfo.Name)
+// 		}
+// 		flds[fldName] = st.Field(i)
+// 		// /*DEBUG*/ fmt.Println("inside decode: fldName:", fldName)
+// 	}
+// 	// /*DEBUG*/ fmt.Println("inside decode: attribs", attribs)
+// 	for name, value := range block {
+// 		fld := flds[name]
+// 		if !fld.IsValid() || !fld.CanSet() {
+// 			continue
+// 		}
+// 		if err := setValue(fld, value); err != nil {
+// 			return fmt.Errorf("could not set value: %s", err)
+// 		}
+// 		// /*DEBUG*/ fmt.Println("inside decode: new fld", fld)
+// 	}
+// 	return nil
+// }

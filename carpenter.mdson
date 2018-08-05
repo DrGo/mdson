@@ -1,4 +1,4 @@
-# Settings: general
+# Settings
 Version: 1.0.0
 Command: run
 OverWriteOutputFile: true
