@@ -134,25 +134,28 @@ func isEmptyValue(v reflect.Value) bool {
 }
 
 type mdsonTagValues struct {
-	tagName string
-	omit    bool
+	name string
+	omit bool
 }
 
 func getMDsonTagValues(sf reflect.StructField) mdsonTagValues {
 	fi := mdsonTagValues{}
 	val, found := sf.Tag.Lookup("mdson")
-	if !found || trimLower(val) == "-" {
-		return fi //tagName=""; omit= false
+	if !found {
+		return fi //name=""; omit= false
+	}
+	if trimLower(val) == "-" {
+		return mdsonTagValues{name: "-"} //name=""; omit= false
 	}
 	opts := strings.Split(val, ",")
-	if len(opts) > 0 { //first options is always Tagname
-		fi.tagName = opts[0]
+	if len(opts) > 0 { //first options is always name
+		fi.name = opts[0]
 	}
 	if len(opts) > 1 { //second options is omitempty
 		fi.omit = trimLower(opts[1]) == "omitempty"
 	}
-	if !isValidTag(fi.tagName) {
-		fi.tagName = ""
+	if !isValidTag(fi.name) {
+		fi.name = ""
 	}
 	return fi
 }
@@ -176,16 +179,47 @@ func isValidTag(s string) bool {
 	return true
 }
 
+func GetValidVarName(s string) string {
+	ns := []rune{}
+	for _, c := range s {
+		if unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_' {
+			ns = append(ns, c)
+		}
+	}
+	return string(ns)
+}
+
 func getStructName(st reflect.Value, index int) string {
+	id := getFieldByNameOrTag(st, "id")                                        //find a variable with name ID
+	if id.IsValid() && id.Type().String() == "mdson.ID" && id.String() != "" { //and type mdson.ID
+		return strings.Title(id.String())
+	}
+	//No ID Field, use struct type name
 	stName := st.Type().Name()
 	if index > 0 {
 		stName = stName + strconv.Itoa(index)
 	}
-	id := getFieldByNameOrTag(st, "id")                   //find a variable with name ID
-	if id.IsValid() && id.Type().String() == "mdson.ID" { //and type mdson.ID
-		stName = strings.Title(id.String())
-	}
 	return stName
+}
+
+//dereference for a pointer returns the value it points to (if nil it creates a new one)
+// for a non-pointer it returns the passed value as is
+//FIXME: replace with Dereference
+func dereference(rv reflect.Value) reflect.Value {
+	//TODO: repeat in a loop until you get a valid value
+	if rv.Kind() != reflect.Ptr {
+		//		fmt.Println("not a pointer")
+		return rv
+	}
+	// if rv.Elem().Kind() != reflect.Ptr && rv.Elem().CanSet() {
+	// 	fmt.Println("not pointing to a  pointer")
+	// 	return rv.Elem()
+	// }
+	if rv.IsNil() {
+		//		fmt.Println("nil pointer")
+		rv.Set(reflect.New(rv.Type().Elem()))
+	}
+	return rv.Elem()
 }
 
 //TODO: centralize reflect.value type checking

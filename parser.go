@@ -6,16 +6,9 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"runtime"
+	"reflect"
 	"strings"
 )
-
-var debug int
-
-// SetDebug sets the default debug level for all package routines
-func SetDebug(level int) {
-	debug = level
-}
 
 //Parser type for parsing MDSon files and text into a a token tree
 type Parser struct {
@@ -29,11 +22,15 @@ type Parser struct {
 }
 
 //NewParser returns an initialized MDsonParser
+//FIXME: no need to expose since parser's funcs are not exposed
 func NewParser(r io.Reader, options *ParserOptions) (*Parser, error) {
 	hp := &Parser{
 		ParserOptions: *options,
 		scanner:       bufio.NewScanner(r),
 	}
+	bufCap := 1024 * 1024 //1 megabyte buffer
+	buf := make([]byte, bufCap)
+	hp.scanner.Buffer(buf, bufCap)
 	//prime the scanner
 	if hp.scanner.Scan() {
 		hp.nextLine = hp.scanner.Text()
@@ -74,7 +71,7 @@ func (hp *Parser) Err() error {
 	return hp.errorState
 }
 
-//Parse parses an MDsonsource
+//Parse parses an MDson source
 //FIXME: validate block name uniqueness
 func (hp *Parser) parse() (root *ttBlock, err error) {
 	root = newTokenBlock("root")
@@ -94,12 +91,12 @@ func (hp *Parser) parse() (root *ttBlock, err error) {
 	if root, ok := root.children[0].(*ttBlock); ok {
 		return root, nil
 	}
-	return throw("no valid first-leve (#) heading")
+	return throw("no valid first-level (#) heading")
 }
 
 func (hp *Parser) advance() Node {
 	iFace := hp.parseNextLine()
-	hp.lineNum += iFace.lineNum()
+	iFace.setLineNum(hp.lineNum)
 	if hp.Debug >= DebugAll {
 		switch t := iFace.(type) {
 		case *ttKVPair:
@@ -114,6 +111,7 @@ func (hp *Parser) advance() Node {
 func (hp *Parser) parseBlock(parent *ttBlock) (bool, error) {
 	for {
 		iFace := hp.advance()
+		hp.log("after advance()-->line", hp.lineNum, iFace)
 		switch node := iFace.(type) {
 		case *ttReadError:
 			return false, fmt.Errorf("line %d: %s", hp.lineNum, node.err)
@@ -124,6 +122,8 @@ func (hp *Parser) parseBlock(parent *ttBlock) (bool, error) {
 			continue
 		case *ttEOF:
 			return false, nil
+		case *ttListItem:
+			return false, fmt.Errorf("line %d: '-' outside a list", hp.lineNum)
 		case *ttBlock:
 			var ok bool
 			var err error
@@ -154,58 +154,70 @@ func (hp *Parser) parseBlock(parent *ttBlock) (bool, error) {
 					return true, nil
 				}
 			}
-		case *ttListItem:
-			return false, fmt.Errorf("line %d: '-' outside a list", hp.lineNum)
+		case *ttList:
+			_, err := hp.parseList(parent, node)
+			if err != nil { //error
+				return false, fmt.Errorf("line %d: %s", hp.lineNum, err)
+			}
+			// if !ok { //end of file
+			// 	return false, nil
+			// }
 		case *ttKVPair:
 			if parent.isArray() {
-				return false, ESyntaxError{hp.lineNum, "only blocks are permitted within a block list"}
+				return false, ESyntaxError{hp.lineNum, "key-value pairs not permitted within a list"}
 			}
+			hp.log("inside parseBlock.ttkvpair:", node.key, node.value)
 			if node.value != "" {
 				parent.addChild(node)
 				continue
 			}
-			//value is empty, is this the start of a list or a free text entry
-			//store current token to add if if it is not
-			_, err := hp.parseListOrFreeText(parent, node)
-			if err != nil {
+			//value is empty, is this the start of free text entry
+			_, err := hp.parseFreeTextOrKVP(parent, node)
+			if err != nil { //error
 				return false, fmt.Errorf("line %d: %s", hp.lineNum, err)
 			}
+			// if !ok { //end of file
+			// 	return false, nil
+			// }
 		default:
-			panic(fmt.Sprintf("unhandled token type in parseBlock():line %d", hp.lineNum))
+			panic(fmt.Sprintf("unhandled token type in parseBlock():line %d: %v reflect.type=%s", hp.lineNum, node, reflect.TypeOf(iFace).String()))
 		}
 	}
 }
 
-func (hp *Parser) parseListOrFreeText(block *ttBlock, openKVP *ttKVPair) (bool, error) {
-	nextLine := strings.TrimSpace(hp.nextLine)
-	switch {
-	case strings.HasPrefix(nextLine, "-"): //nextline starts with '-' must be a list
-		list := newList(openKVP.key) //use the key of the open kvp as the list's name
-		i := 0
-		for strings.HasPrefix(nextLine, "-") {
-			i++
-			//	fmt.Println("iteration:", i, "current line", hp.currentLine, "next line", hp.nextLine)
-			iFace := hp.advance()
-			//	fmt.Println("iteration:", i, "current line", hp.currentLine, "next line", hp.nextLine)
-			li, ok := iFace.(*ttListItem)
-			if !ok { //sanity check
-				return false, fmt.Errorf("something went wrong in parsing list items in line %d", hp.lineNum)
-			}
-			list.addItem(li)
-			nextLine = strings.TrimSpace(hp.nextLine)
+func (hp *Parser) parseList(block *ttBlock, list *ttList) (bool, error) {
+	nextLine := trimLeftSpace(hp.nextLine)
+	i := 0
+	for strings.HasPrefix(nextLine, "-") {
+		i++
+		iFace := hp.advance()
+		// fmt.Println("iteration:", i, "current line", hp.currentLine, "next line", hp.nextLine)
+		li, ok := iFace.(*ttListItem)
+		if !ok { //just sanity check
+			return false, fmt.Errorf("something went wrong in parsing list items in line %d", hp.lineNum)
 		}
-		block.addChild(list)
-	case strings.HasPrefix(nextLine, "<<"): //next line starts with '<<' or '<<<', parse free text
+		list.addItem(li)
+		nextLine = trimLeftSpace(hp.nextLine)
+	}
+	block.addChild(list)
+	return true, nil
+}
+
+func (hp *Parser) parseFreeTextOrKVP(block *ttBlock, openKVP *ttKVPair) (bool, error) {
+	nextLine := trimLeftSpace(hp.nextLine)
+	if strings.HasPrefix(nextLine, "<<") { //next line starts with '<<' or '<<<', parse free text
 		ls, err := hp.parseFreeText(openKVP)
 		if err != nil {
 			return false, err
 		}
 		hp.log(ls)
 		block.addChild(ls)
-	default: //this was just an empty kvp, add
-		block.addChild(openKVP)
+		return true, nil
 	}
+	//this was just an empty kvp, add
+	block.addChild(openKVP)
 	return true, nil
+
 }
 
 func (hp *Parser) getErrorStatus() Node {
@@ -233,8 +245,7 @@ func (hp *Parser) isEOF() bool {
 func (hp *Parser) parseFreeText(openKVP *ttKVPair) (*ttLiteralString, error) {
 	contents := ""
 	oTag, cTag := "<<", ">>" // we are in a block that starts with << or <<<
-
-	lineBreak := ""
+	eol := ""
 	first := true
 loop:
 	for { //accumulate all text until cTag or an error
@@ -251,24 +262,20 @@ loop:
 			if strings.HasPrefix(hp.currentLine, "<<<") { // is this a literal block
 				oTag = "<<<"
 				cTag = ">>>"
-				//TODO: move to core
-				lineBreak = "\n"
-				if runtime.GOOS == "windows" {
-					lineBreak = "\r\n"
-				}
+				eol = lineBreak
 			}
-			contents += strings.TrimPrefix(hp.currentLine, oTag) + lineBreak //store rest of first line
+			contents += strings.TrimPrefix(hp.currentLine, oTag) + eol //store rest of first line
 			//handle the situation where there is only one text line  ie << one line here >>
 			if strings.HasSuffix(hp.currentLine, cTag) {
-				contents = strings.TrimSuffix(contents, cTag) + lineBreak
+				contents = strings.TrimSuffix(contents, cTag) + eol
 				break loop
 			}
 			first = false
 		case strings.HasSuffix(hp.currentLine, cTag): //the end of the text block
-			contents += strings.TrimSuffix(hp.currentLine, cTag) + lineBreak
+			contents += strings.TrimSuffix(hp.currentLine, cTag) + eol
 			break loop
 		default: //other lines in between
-			contents += hp.currentLine + lineBreak
+			contents += hp.currentLine + eol
 		}
 	}
 	return newLiteralString(openKVP.key, contents), nil
@@ -279,34 +286,42 @@ func (hp *Parser) parseNextLine() Node {
 		return hp.getErrorStatus()
 	}
 	line := hp.currentLine
-	hp.log("PNL()", hp.lineNum, ":", line)
-	trimmed := strings.TrimSpace(line)
-	switch {
-	case strings.HasPrefix(trimmed, "-"):
-		item := line[strings.IndexByte(line, '-'):]
-		item = strings.Trim(item, " -")
-		return newListItem(item)
-	case trimmed == "":
-		return &sEmpty
-	case strings.HasPrefix(trimmed, "//"):
-		return &sComment
-	default:
-		hd := getHeading(line)
-		if hd.level > 0 { //we found a heading
-			/*DEBUG*/ hp.log(":", line)
-
-			return newTokenBlock(hd.name).setLevel(hd.level)
-		}
-		parts := strings.SplitN(line, ":", 2) //split on the first colon
-		if len(parts) != 2 {
-			//fmt.Println("split", len(parts), parts)
-			return newSyntaxError("likely missing ':'")
-		}
-		//found key:value pair
-		key := trimLower(parts[0])
-		value := trimLower(parts[1])
-		return newKVPair(key, value) //some other key:value pair
+	hp.log("parseNextLine()", hp.lineNum, ":", line)
+	trimmed := trimLeftSpace(line)
+	//scenario 1 : empty line
+	if trimmed == "" {
+		return (&sEmpty)
 	}
+	//scenario 2: commented line
+	if strings.HasPrefix(trimmed, "//") {
+		return (&sComment)
+	}
+	//scenario 3: list item
+	if trimmed[0] == '-' { //guarnteed to have >=1 char b/c of the empty check above
+		item := ""
+		if len(trimmed) > 1 {
+			item = trimmed[1:] //skip the minus
+		}
+		return newListItem(item)
+	}
+	//scenario 4: block
+	if hd := getHeading(trimmed); hd.level > 0 {
+		/*DEBUG*/ hp.log(":", line, hd)
+		return newTokenBlock(hd.name).setLevel(hd.level)
+	}
+	//scenario 6: invalid key:value pair
+	parts := strings.SplitN(line, ":", 2) //split on the first colon
+	if len(parts) != 2 {
+		return newSyntaxError("likely missing ':'")
+	}
+	//scenario 7: an array of non-block types
+	key := trimLower(parts[0])
+	value := trimLower(parts[1])
+	if isArray(key) && value == "" {
+		return newList(key)
+	}
+	//scenario 8: valid key:value pair
+	return newKVPair(key, value)
 }
 
 // readNextLine advances the scanner to the next line and return false
@@ -322,6 +337,7 @@ func (hp *Parser) readNextLine() bool {
 	if hp.scanner.Scan() {
 		hp.currentLine = hp.nextLine
 		hp.nextLine = hp.scanner.Text()
+		hp.lineNum++
 		return true
 	}
 	//there was an error, set parser.errorState
@@ -331,19 +347,8 @@ func (hp *Parser) readNextLine() bool {
 		hp.errorState = hp.scanner.Err()
 	}
 	hp.currentLine = hp.nextLine
+	hp.lineNum++
 	return true //stil ok for this iteration
-}
-
-//FIXME: replace with one interface arg
-func throw(value interface{}) (*ttBlock, error) {
-	switch unboxed := value.(type) {
-	case string:
-		return nil, fmt.Errorf("%s", unboxed)
-	case error:
-		return nil, fmt.Errorf("%s", unboxed)
-	default:
-		panic("unsupported argument type in throw()")
-	}
 }
 
 //move all these into a class in core that can be enclosed in any class
@@ -360,23 +365,3 @@ func (hp *Parser) warn(a ...interface{}) {
 		fmt.Println(a...)
 	}
 }
-
-// func (hp *Parser) ParseContents(src string) (tokens []FieldToken, err error) {
-// 	return parseContents(src)
-// }
-
-//DecodeBlock takes a map of key-value pairs and decodes it into the struct
-//passed as an interface
-// func (hp *Parser) DecodeBlock(in interface{}, block TokenBlock) error {
-// 	return decode(in, block)
-// }
-
-//DecodeAttribs takes a string of key-value pairs and decodes it into the struct
-//passed as an interface
-// func (hp *Parser) DecodeAttribs(in interface{}, attribs string) error {
-// 	block, err := parseAttribs(attribs)
-// 	if err != nil {
-// 		return fmt.Errorf("failed to parse attribs '%s'", attribs)
-// 	}
-// 	return decode(in, block)
-// }

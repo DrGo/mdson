@@ -1,5 +1,10 @@
 package mdson
 
+import (
+	"fmt"
+	"strings"
+)
+
 type heading struct {
 	name  string
 	level int
@@ -17,4 +22,19 @@ func getHeading(line string) heading {
 		return heading{name: "", level: -1}
 	}
 	return heading{name: name, level: i}
+}
+
+func throw(value interface{}) (*ttBlock, error) {
+	switch unboxed := value.(type) {
+	case string:
+		return nil, fmt.Errorf("%s", unboxed)
+	case error:
+		return nil, fmt.Errorf("%s", unboxed)
+	default:
+		panic("unsupported argument type in throw()")
+	}
+}
+
+func isArray(key string) bool {
+	return strings.HasSuffix(key, " list")
 }

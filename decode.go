@@ -32,6 +32,7 @@ func Unmarshal(r io.Reader, out interface{}) (err error) {
 	err = dec.decodeBlock(blk, rv)
 	dec.depth = 0
 	dec.log("***********decoding ended. Err= ", err)
+	dec.log("umarshalled struct:", out)
 	return err
 }
 
@@ -62,26 +63,6 @@ func (dec *Decoder) warn(a ...interface{}) {
 	}
 }
 
-//dereference for a pointer returns the value it points to (if nil it creates a new one)
-// for a non-pointer it returns the passed value as is
-//FIXME: replace with Dereference
-func dereference(rv reflect.Value) reflect.Value {
-	//TODO: repeat in a loop until you get a valid value
-	if rv.Kind() != reflect.Ptr {
-		//		fmt.Println("not a pointer")
-		return rv
-	}
-	// if rv.Elem().Kind() != reflect.Ptr && rv.Elem().CanSet() {
-	// 	fmt.Println("not pointing to a  pointer")
-	// 	return rv.Elem()
-	// }
-	if rv.IsNil() {
-		//		fmt.Println("nil pointer")
-		rv.Set(reflect.New(rv.Type().Elem()))
-	}
-	return rv.Elem()
-}
-
 func (dec *Decoder) decodeBlock(block *ttBlock, rv reflect.Value) error {
 	//	dec.log(block.Name(), "rv:", rv.String())
 	rv = dereference(rv)
@@ -104,7 +85,7 @@ func (dec *Decoder) decodeBlock(block *ttBlock, rv reflect.Value) error {
 			fld := getSettableField(rv, n.Name()) //find a variable with this array name
 			if !fld.IsValid() {
 				dec.warn(n.Name(), "no suitable field in corresponding struct")
-				return nil
+				continue //skip to next field
 			}
 			if n.isArray() { //array of blocks; fld is []struct or []*struct
 				dec.log("array:", n.Name(), fld.Type().String())
@@ -137,7 +118,7 @@ func (dec *Decoder) decodeBlock(block *ttBlock, rv reflect.Value) error {
 					}
 				}
 				dec.depth--
-				return nil
+				continue
 			}
 			//a struct in a non-array block
 			if err := dec.decodeBlock(n, fld); err != nil {
@@ -197,9 +178,10 @@ func (dec *Decoder) decodeList(list *ttList, rv reflect.Value) error {
 	//
 	//TODO: add support for array of pointers eg []*string
 	et := fld.Type().Elem()
-	dec.log("list:", list.Name(), fld.Type().String(), "el-type", et.String())
-	for _, item := range list.items {
+	dec.log("list:", list.Name(), fld.Type().String(), "el-type", et.String(), "n-items", len(list.items))
+	for i, item := range list.items {
 		value := strings.TrimSpace(item.key)
+		dec.log("item ", i, "=", item)
 		if value == "" {
 			continue
 		}

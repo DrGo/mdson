@@ -5,30 +5,50 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"reflect"
 	"strings"
+
+	"github.com/drgo/core/files"
 )
 
-const lineBreak = "\n"
+//MarshalToFile stores MDSon representation of v in FileName
+func MarshalToFile(v interface{}, FileName string, overwrite bool) (err error) {
+	const errMsg = "failed to save to MDSon file: %s"
+	mdsonFile, err := ioutil.TempFile("", "mdson")
+	if err != nil {
+		return fmt.Errorf(errMsg, err)
+	}
+	defer func() {
+		errC := files.CloseAndRename(mdsonFile, FileName, overwrite)
+		if errC != nil {
+			err = fmt.Errorf(errMsg, errC)
+		}
+	}()
+	buf, err := Marshal(v)
+	if err != nil {
+		return fmt.Errorf(errMsg, err)
+	}
+	_, err = mdsonFile.Write(buf)
+	if err != nil {
+		return fmt.Errorf(errMsg, err)
+	}
+	return nil
+}
 
-//Marshal encodes the contents of a pointer to an interface{} v into io.Writer
-// Marshal traverses the value v recursively.
-// Struct values encode as JSON objects.
-//FIXME: change to producing msdon
+//Marshal returns the MDSon encoding of v.
 func Marshal(v interface{}) ([]byte, error) {
 	var b bytes.Buffer
 	enc := NewEncoder(&b)
-	// enc.Indent(prefix, indent)
 	if err := enc.Encode(v); err != nil {
 		return nil, err
 	}
 	return b.Bytes(), nil
-	// return json.MarshalIndent(v, "", " ")
 }
 
 type fieldInfo struct {
-	mdsonTagValues
-	sf *reflect.StructField
+	tag mdsonTagValues
+	sf  *reflect.StructField
 }
 
 // The encoding of each struct field can be customized by the format string
@@ -67,16 +87,16 @@ type fieldInfo struct {
 //   Field int `mdson:"-,"`
 
 func newFieldInfo(sf reflect.StructField) *fieldInfo {
-	tv := getMDsonTagValues(sf)
-	return &fieldInfo{mdsonTagValues: tv, sf: &sf}
+	tag := getMDsonTagValues(sf)
+	return &fieldInfo{tag: tag, sf: &sf}
 }
 
 func (fi *fieldInfo) name() string {
 	// Precedence for the field  name is:
 	// 0. tag name
-	// 1. filed name
-	if fi.tagName != "" {
-		return fi.tagName
+	// 1. field name
+	if fi.tag.name != "" {
+		return fi.tag.name
 	}
 	return fi.sf.Name
 }
@@ -87,8 +107,9 @@ func (fi *fieldInfo) typ() reflect.Type {
 
 //Encoder decodes
 type Encoder struct {
-	Debug int
-	depth int
+	Debug   int
+	depth   int
+	started bool
 	*bufio.Writer
 }
 
@@ -100,8 +121,21 @@ func NewEncoder(w io.Writer) *Encoder {
 	}
 }
 
-// Encode writes the XML encoding of v to the stream.
-// Encode calls Flush before returning.
+// SetBlockLevel specifies the initial heading level to be assigned to an object
+// when encoded into MDSon; e.g., SetBlockLevel(2) creates an MDSon with the encoded
+// object assigned heading level 2 (ie ## blockname) instead of default #.
+// It panics if called by a value < 1 or if it was called afer encoding had started.
+func (enc *Encoder) SetBlockLevel(l int) {
+	if l < 1 {
+		panic("Encoder.SetBlockLevel called with negative or zero value")
+	}
+	if enc.started {
+		panic("Encoder.SetBlockLevel called after encoding had started")
+	}
+	enc.depth = l - 1
+}
+
+// Encode writes the MDSon encoding of v to an internal buffered stream.
 func (enc *Encoder) Encode(v interface{}) error {
 	st := reflect.ValueOf(v)
 	//find a struct if v is an interface or pointer
@@ -112,15 +146,18 @@ func (enc *Encoder) Encode(v interface{}) error {
 		}
 		st = st.Elem()
 	}
-	blockName := getStructName(st, 0)
-	err := enc.encodeStruct(st, blockName)
+	//special handling of the root struct b/c it is not a field in another struct
+	fi := newFieldInfo(reflect.StructField{
+		Name:      getStructName(st, 0),
+		Anonymous: false})
+	err := enc.encodeStruct(st, fi)
 	if err != nil {
 		return err
 	}
 	return enc.Flush()
 }
 
-func (enc *Encoder) encodeStruct(st reflect.Value, blockName string) error {
+func (enc *Encoder) encodeStruct(st reflect.Value, fi *fieldInfo) error {
 	var err error
 	if !st.IsValid() {
 		return nil
@@ -129,15 +166,24 @@ func (enc *Encoder) encodeStruct(st reflect.Value, blockName string) error {
 		return fmt.Errorf("root value is not a struct")
 	}
 	stType := st.Type()
-	// Create an MDSon block element.
-	enc.depth++ //got a root block
-	enc.log("encodeStruct:", blockName, stType, enc.depth)
-	//write the block name
-	enc.WriteString(lineBreak + strings.Repeat("#", enc.depth) + " " + blockName + lineBreak)
+	// Create an MDSon block element if the struc is not ananymous
+	if !fi.sf.Anonymous {
+		enc.depth++
+		enc.WriteString(strings.Repeat("#", enc.depth) + " " + fi.name() + lineBreak)
+
+	}
+	enc.started = true
+	enc.log("encodeStruct:", fi.name(), stType, enc.depth)
 	// loop:
 	for i := 0; i < stType.NumField(); i++ {
 		fld := st.Field(i)
+		if !fld.CanSet() { //probably unexported field
+			continue
+		}
 		fldInfo := newFieldInfo((stType.Field(i)))
+		if fldInfo.name() == "-" {
+			continue
+		}
 		k := ToMarshableKind(fld.Type().Kind())
 		if k == MarshablePtr { //iface or ptr follow-it
 			fld = Dereference(fld, false /*do not create element if nil*/)
@@ -150,17 +196,20 @@ func (enc *Encoder) encodeStruct(st reflect.Value, blockName string) error {
 		// if finfo.flags&fOmitEmpty != 0 && isEmptyValue(fv) {
 		// 	continue
 		// }
-		enc.log(blockName, "fld :", fldInfo.name(), fldInfo.typ, enc.depth)
+		enc.log(fi.name(), "fld :", fldInfo.name(), fldInfo.typ, enc.depth)
 		switch k {
 		case MarshablePtr:
 			panic("decodeStruct(): pointer not allowed at this point")
 		case MarshableSlice:
 			enc.encodeSlice(fld, fldInfo)
 		case MarshableStruct:
-			err = enc.encodeStruct(fld, fldInfo.name())
+			err = enc.encodeStruct(fld, fldInfo)
 		case UnMarshable:
 			continue
 		case MarshablePrimitive:
+			if isEmptyValue(fld) && fldInfo.tag.omit {
+				continue
+			}
 			s := encodeSimple(fld)
 			enc.WriteString(fldInfo.name() + " :" + s + lineBreak)
 		default:
@@ -170,8 +219,11 @@ func (enc *Encoder) encodeStruct(st reflect.Value, blockName string) error {
 			return err
 		}
 	}
-	fmt.Println("about to decrement depth from", enc.depth)
-	enc.depth--
+	// /*DEBUG*/	fmt.Println("about to decrement depth from", enc.depth)
+	if !fi.sf.Anonymous {
+		enc.depth--
+		enc.WriteString(lineBreak)
+	}
 	return nil //p.cachedWriteError()
 }
 
@@ -198,22 +250,27 @@ func (enc *Encoder) encodeSlice(sl reflect.Value, fldInfo *fieldInfo) error {
 	//scenario 1: a slice/array of structs or ptrs to a struct, write each element as a block
 	if el.Kind() == reflect.Struct || (el.Kind() == reflect.Ptr && el.Elem().Kind() == reflect.Struct) {
 		enc.depth++
-		//FIXME: what name to write
 		enc.WriteString(lineBreak + strings.Repeat("#", enc.depth) + " " + fldInfo.name() + " List" + lineBreak)
 		for i := 0; i < sl.Len(); i++ {
 			st := Dereference(sl.Index(i), false /*do not create element if nil*/)
 			if !st.IsValid() { //nil iface or ptr
 				continue
 			}
-			blockName := getStructName(st, i+1)
-			if err := enc.encodeStruct(st, blockName); err != nil {
+			fi := newFieldInfo(reflect.StructField{
+				Name: getStructName(st, i+1),
+			})
+			if err := enc.encodeStruct(st, fi); err != nil {
 				return err
 			}
 		}
 		enc.depth--
 		return nil
 	}
-	if el.Kind() == reflect.Uint8 { //byte array/slice: marshal as a string
+	//scenario 2: byte array/slice: marshal as a string
+	if el.Kind() == reflect.Uint8 {
+		if sl.Len() == 0 && fldInfo.tag.omit {
+			return nil
+		}
 		var bytes []byte
 		if sl.Type().Kind() == reflect.Array {
 			if sl.CanAddr() {
@@ -222,9 +279,9 @@ func (enc *Encoder) encodeSlice(sl reflect.Value, fldInfo *fieldInfo) error {
 				bytes = make([]byte, sl.Len())
 				reflect.Copy(reflect.ValueOf(bytes), sl)
 			}
+		} else { //slice
+			bytes = sl.Bytes()
 		}
-		//must be a byte slice
-		bytes = sl.Bytes()
 		enc.WriteString(fldInfo.name() + " :" + string(bytes) + lineBreak)
 		return nil
 	}
@@ -232,7 +289,10 @@ func (enc *Encoder) encodeSlice(sl reflect.Value, fldInfo *fieldInfo) error {
 	//scenario 3: a slice/array of primitive type or pointers to a primitive type, write as an MDSon list
 	enc.log("primitve type:", primitiveType(el.Kind()))
 	if primitiveType(el.Kind()) || (el.Kind() == reflect.Ptr && primitiveType(el.Elem().Kind())) {
-		enc.WriteString(fldInfo.name() + " :" + lineBreak)
+		if sl.Len() == 0 && fldInfo.tag.omit {
+			return nil
+		}
+		enc.WriteString(fldInfo.name() + " List :" + lineBreak)
 		for i := 0; i < sl.Len(); i++ {
 			li := Dereference(sl.Index(i), false /*do not create element if nil*/)
 			if !li.IsValid() { //nil iface or ptr

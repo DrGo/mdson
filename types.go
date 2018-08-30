@@ -76,12 +76,15 @@ const (
 	ltKVPair
 )
 
-//lt lineType, linesRead int, key, value string) {
+//Node implement parser's AST node
 type Node interface {
-	lineNum() int
 	String() string
 	Kind() string
 	Name() string
+	Children() []Node
+	ChildByName(name string) Node
+	lineNum() int
+	setLineNum(value int)
 }
 
 //baseToken implements the basic token interface root of all of other tokens
@@ -95,7 +98,7 @@ func (bt ttBase) lineNum() int {
 	return bt.lnum
 }
 
-const nodeDescLine = "type=%s, linesread=%d, key=%s"
+const nodeDescLine = "type=%s, lineNum=%d, key=%s"
 
 func (bt ttBase) String() string {
 	return fmt.Sprintf(nodeDescLine, bt.Kind(), bt.lineNum(), bt.key)
@@ -106,12 +109,23 @@ func (bt ttBase) Kind() string {
 }
 
 func (bt ttBase) Name() string {
-	return bt.key
+	return GetValidVarName(bt.key)
 }
 
-func (bt *ttBase) setLineNum(value int) *ttBase {
+func (bt *ttBase) setLineNum(value int) {
 	bt.lnum = value
-	return bt
+}
+
+func (bt ttBase) isArray() bool {
+	return isArray(bt.key)
+}
+
+func (bt ttBase) Children() []Node {
+	return nil
+}
+
+func (bt ttBase) ChildByName(name string) Node {
+	return nil
 }
 
 type ttReadError struct {
@@ -156,11 +170,6 @@ type ttBlock struct {
 	children []Node
 }
 
-func (blk ttBlock) isArray() bool {
-	//true if this block functions to hold other blocks
-	return strings.HasSuffix(blk.key, " list")
-}
-
 func newTokenBlock(name string) *ttBlock {
 	return &ttBlock{ttBase: ttBase{kind: "Block", key: name}}
 }
@@ -176,10 +185,11 @@ func (blk ttBlock) String() string {
 }
 
 func (blk ttBlock) Name() string {
+	name := GetValidVarName(blk.key)
 	if blk.isArray() {
-		return strings.TrimSuffix(blk.key, " list")
+		return strings.TrimSuffix(name, "list")
 	}
-	return blk.key
+	return name
 }
 
 func (blk *ttBlock) setName(value string) *ttBlock {
@@ -204,6 +214,14 @@ func (blk ttBlock) getChildByName(name string) Node {
 		}
 	}
 	return nil
+}
+
+func (blk ttBlock) Children() []Node {
+	return blk.children
+}
+
+func (blk ttBlock) ChildByName(name string) Node {
+	return blk.getChildByName(name)
 }
 
 type ttKVPair struct {
@@ -249,6 +267,10 @@ func (list ttList) String() string {
 	return sb.String()
 }
 
+func (list ttList) Name() string {
+	return strings.TrimSuffix(GetValidVarName(list.key), "list")
+}
+
 func (list *ttList) setName(value string) *ttList {
 	list.key = value
 	return list
@@ -277,29 +299,9 @@ func newLiteralString(key, value string) *ttLiteralString {
 	return &ls
 }
 
-//create sentinel values once for simply returning a struct
+//create singlton sentinel values once for simply returning a struct
 var (
-	// sReadError   = ttReadError{ttBase: ttBase{}}
-	// sSyntaxError = ttSyntaxError{ttReadError: ttReadError{}}
 	sEOF     = ttEOF{ttBase: ttBase{kind: "EOF"}}
 	sEmpty   = ttEmpty{ttBase: ttBase{kind: "Empty"}}
 	sComment = ttComment{ttBase: ttBase{kind: "Comment"}}
 )
-
-//ParserOptions holds parsing options
-type ParserOptions struct {
-	Debug int
-}
-
-//DefaultParserOptions returns reasonable default for parsing
-func DefaultParserOptions() *ParserOptions {
-	return &ParserOptions{
-		Debug: DebugUpdates,
-	}
-}
-
-//SetDebug sets verbosity level
-func (po *ParserOptions) SetDebug(d int) *ParserOptions {
-	po.Debug = d
-	return po
-}

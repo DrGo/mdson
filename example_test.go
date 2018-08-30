@@ -1,10 +1,12 @@
 package mdson
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 )
 
+//TODO: test struct tags "mdson"
 func ExampleParse() {
 	SetDebug(DebugSilent)
 	root, err := Parse(strings.NewReader(full))
@@ -97,6 +99,26 @@ func ExampleMarshal() {
 	// header1
 }
 
+func ExampleMarshalSubBlock() {
+	SetDebug(DebugAll)
+	doc := &Document{}
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf) //creating own encoder to control depth level
+	enc.SetBlockLevel(2)    //to get ## Document
+	if err := enc.Encode(doc); err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(buf.String())
+	// Output:
+	//
+	// 1
+	// /users/salah/dropbox/code/go/src/github.com/drgo/htmldocx/cmd
+	// ${include: tab1old.html}${include: test.html}
+	// 12240
+	// header1
+}
+
 type Job struct {
 	Version             string
 	Command             string
@@ -120,7 +142,7 @@ func (f *Job) String() string {
 
 type Document struct {
 	ID               ID
-	TemplateFileName string
+	TemplateFileName string `mdson:",omitempty"`
 	InputDir         string
 	// HeadersFooters   []*HeaderFooter
 	Sections []*Section
@@ -130,7 +152,7 @@ type Settings struct {
 	ConvertOldVersions   bool
 	ConvertFromVersion   string
 	DoNotInlineCSS       bool
-	MandatoryCol         bool
+	MandatoryCol         bool `mdson:"-"`
 	MaxConcurrentWorkers int
 }
 
@@ -181,17 +203,6 @@ Debug: 2
 WorkDirName: 
 //comments: empty lines ignored
 
-## rosewood
-ConvertOldVersions: false
-ConvertFromVersion: v01
-DoNotInlineCSS: false
-MandatoryCol: false
-MaxConcurrentWorkers: 30
-PreserveWorkFiles: false
-ReportAllError: false
-SaveConvertedFile: false
-StyleSheetName: 
-TrimCellContents: false
 ## Document
 TemplateFileName: 
 InputDir: 
@@ -199,7 +210,7 @@ InputDir:
 ### Sections List
 #### Section1
 contents: "hello"
-InputFiles:
+InputFiles List:
 - file1
 - file2
 - file3
@@ -210,8 +221,7 @@ some other test>>
 
 #### Section2
 contents: "goodbye"
-InputFiles:
-- file4
+InputFiles List:
 freeText:
 <<< anything here 'goes'
 <head> other \n stuff </head>
@@ -222,12 +232,24 @@ some "other" test>>>
 const correct = `# Job
 Command: run
 OverWriteOutputFile: true
-OutputFileName: fromconfig.docx
+Output File Name: fromconfig.docx
 Debug: 2
 WorkDirName:
-InputFileNames:
+InputFileNames List:
 - tab1old.html
 - test.html
+
+## Rosewood
+ConvertOldVersions: false
+ConvertFromVersion: v01
+DoNotInlineCSS: false
+MandatoryCol: false
+MaxConcurrentWorkers: 30
+PreserveWorkFiles: false
+ReportAllError: true
+SaveConvertedFile: false
+StyleSheetName: 
+TrimCellContents: false
 
 ## Document
 TemplateFileName: 
@@ -264,16 +286,4 @@ InputDir:
 Contents:
 <<${word: PAGE}
 some other text>>
-
-## RoseWoodSettings
-ConvertOldVersions: false
-ConvertFromVersion: v01
-DoNotInlineCSS: false
-MandatoryCol: false
-MaxConcurrentWorkers: 30
-PreserveWorkFiles: false
-ReportAllError: true
-SaveConvertedFile: false
-StyleSheetName: 
-TrimCellContents: false
 `
