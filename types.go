@@ -83,6 +83,7 @@ type Node interface {
 	Name() string
 	Children() []Node
 	ChildByName(name string) Node
+	ValueOf() map[string]string
 	lineNum() int
 	setLineNum(value int)
 }
@@ -125,6 +126,10 @@ func (bt ttBase) Children() []Node {
 }
 
 func (bt ttBase) ChildByName(name string) Node {
+	return nil
+}
+
+func (bt ttBase) ValueOf() map[string]string {
 	return nil
 }
 
@@ -222,6 +227,19 @@ func (blk ttBlock) Children() []Node {
 
 func (blk ttBlock) ChildByName(name string) Node {
 	return blk.getChildByName(name)
+}
+
+func (blk ttBlock) ValueOf() map[string]string {
+	contents := map[string]string{}
+	for _, c := range blk.children {
+		switch uc := c.(type) {
+		case *ttKVPair:
+			contents[uc.key] = uc.value
+		case *ttLiteralString:
+			contents[uc.key] = uc.value
+		}
+	}
+	return contents
 }
 
 type ttKVPair struct {
