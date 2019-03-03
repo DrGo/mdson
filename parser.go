@@ -8,11 +8,14 @@ import (
 	"os"
 	"reflect"
 	"strings"
+
+	"github.com/drgo/core/ui"
 )
 
 //Parser type for parsing MDSon files and text into a a token tree
 type Parser struct {
 	ParserOptions
+	ui.UI
 	lineNum     int
 	currentLine string
 	nextLine    string
@@ -27,6 +30,7 @@ func NewParser(r io.Reader, options *ParserOptions) (*Parser, error) {
 	hp := &Parser{
 		ParserOptions: *options,
 		scanner:       bufio.NewScanner(r),
+		UI:            ui.NewUI(options.Debug),
 	}
 	bufCap := 1024 * 1024 //1 megabyte buffer
 	buf := make([]byte, bufCap)
@@ -101,7 +105,7 @@ func (hp *Parser) advance() Node {
 		switch t := iFace.(type) {
 		case *ttKVPair:
 		default:
-			/*DEBUG*/ hp.log(hp.lineNum, t)
+			/*DEBUG*/ hp.Log(hp.lineNum, t)
 		}
 	}
 	return iFace
@@ -111,7 +115,7 @@ func (hp *Parser) advance() Node {
 func (hp *Parser) parseBlock(parent *ttBlock) (bool, error) {
 	for {
 		iFace := hp.advance()
-		hp.log("after advance()-->line", hp.lineNum, iFace)
+		hp.Log("after advance()-->line", hp.lineNum, iFace)
 		switch node := iFace.(type) {
 		case *ttReadError:
 			return false, fmt.Errorf("line %d: %s", hp.lineNum, node.err)
@@ -166,7 +170,7 @@ func (hp *Parser) parseBlock(parent *ttBlock) (bool, error) {
 			if parent.isArray() {
 				return false, ESyntaxError{hp.lineNum, "key-value pairs not permitted within a list"}
 			}
-			hp.log("inside parseBlock.ttkvpair:", node.key, node.value)
+			hp.Log("inside parseBlock.ttkvpair:", node.key, node.value)
 			if node.value != "" {
 				parent.addChild(node)
 				continue
@@ -210,7 +214,7 @@ func (hp *Parser) parseFreeTextOrKVP(block *ttBlock, openKVP *ttKVPair) (bool, e
 		if err != nil {
 			return false, err
 		}
-		hp.log(ls)
+		hp.Log(ls)
 		block.addChild(ls)
 		return true, nil
 	}
@@ -250,7 +254,7 @@ func (hp *Parser) parseFreeText(openKVP *ttKVPair) (*ttLiteralString, error) {
 loop:
 	for { //accumulate all text until cTag or an error
 		ok := hp.readNextLine()
-		// hp.log("PFT()", hp.lineNum, "RNL() returned:", ok, hp.errorState)
+		// hp.Log("PFT()", hp.lineNum, "RNL() returned:", ok, hp.errorState)
 		switch {
 		case !ok: //error or nothing left to parse
 			if !hp.isEOF() {
@@ -286,7 +290,7 @@ func (hp *Parser) parseNextLine() Node {
 		return hp.getErrorStatus()
 	}
 	line := hp.currentLine
-	hp.log("parseNextLine()", hp.lineNum, ":", line)
+	hp.Log("parseNextLine()", hp.lineNum, ":", line)
 	trimmed := trimLeftSpace(line)
 	//scenario 1 : empty line
 	if trimmed == "" {
@@ -306,7 +310,7 @@ func (hp *Parser) parseNextLine() Node {
 	}
 	//scenario 4: block
 	if hd := getHeading(trimmed); hd.level > 0 {
-		/*DEBUG*/ hp.log(":", line, hd)
+		/*DEBUG*/ hp.Log(":", line, hd)
 		return newTokenBlock(hd.name).setLevel(hd.level)
 	}
 	//scenario 6: invalid key:value pair
@@ -325,7 +329,7 @@ func (hp *Parser) parseNextLine() Node {
 }
 
 // readNextLine advances the scanner to the next line and return false
-// if EOF encountered or error occured. Parser.Err() reports the specific error
+// if EOF encountered or error occurred. Parser.Err() reports the specific error
 // otherwise it return true
 //first time called there is always something to read
 func (hp *Parser) readNextLine() bool {
@@ -348,20 +352,20 @@ func (hp *Parser) readNextLine() bool {
 	}
 	hp.currentLine = hp.nextLine
 	hp.lineNum++
-	return true //stil ok for this iteration
+	return true //still ok for this iteration
 }
 
-//move all these into a class in core that can be enclosed in any class
-func (hp *Parser) log(a ...interface{}) {
-	if hp.Debug >= DebugAll {
-		//		fmt.Printf(strings.Repeat("  ", dec.depth))
-		fmt.Println(a...)
-	}
-}
+// //move all these into a class in core that can be enclosed in any class
+// func (hp *Parser) log(a ...interface{}) {
+// 	if hp.Debug >= DebugAll {
+// 		//		fmt.Printf(strings.Repeat("  ", dec.depth))
+// 		fmt.Println(a...)
+// 	}
+// }
 
-func (hp *Parser) warn(a ...interface{}) {
-	if hp.Debug >= DebugWarning {
-		fmt.Printf("warning: ")
-		fmt.Println(a...)
-	}
-}
+// func (hp *Parser) warn(a ...interface{}) {
+// 	if hp.Debug >= DebugWarning {
+// 		fmt.Printf("warning: ")
+// 		fmt.Println(a...)
+// 	}
+// }

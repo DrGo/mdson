@@ -6,7 +6,7 @@ var debug int
 
 // SetDebug sets the default debug level for all package routines
 func SetDebug(level int) {
-	debug = 3
+	debug = level
 }
 
 const (

@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-//Unmarshal unmarshales the contents of io.Reader into a pointer to an interface{}
+//Unmarshal unmarshal the contents of io.Reader into an interface{}
 func Unmarshal(r io.Reader, out interface{}) (err error) {
 	//TODO: define the defer recover func below
 	rv := reflect.ValueOf(out)
@@ -32,7 +32,7 @@ func Unmarshal(r io.Reader, out interface{}) (err error) {
 	err = dec.decodeBlock(blk, rv)
 	dec.depth = 0
 	dec.log("***********decoding ended. Err= ", err)
-	dec.log("umarshalled struct:", out)
+	dec.log("decoded struct:", out)
 	return err
 }
 
