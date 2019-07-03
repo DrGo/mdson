@@ -1,0 +1,120 @@
+# Job
+Debug :0
+RwFileNames List :
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/Table-ASR-age_grp.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/Table-ASR-rha_code.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/Table-ASR-ca_wpg_split.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/Table-ASR-c_year.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/Table-ASR-age-region-1.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/avg-cost-hpv.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-sum-cost-hpv.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-sum-cost-seg-hpv.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-periods.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-median-periods.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-attr-cost-hpv-1.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-attr-cost-hpv-2.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-attr-cost-yr-hpv-1.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-attr-cost-yr-hpv-2.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-age-1.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-age-2.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-age-3.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-age-4.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-age-5.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-age-6.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-region-1.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-region-2.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-region-3.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-region-4.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-region-5.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-region-6.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-cal_year-1.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-cal_year-2.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-cal_year-3.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-cal_year-4.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-cal_year-5.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/hpvmen-cost-stat-cal_year-6.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/descr-table-residence.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/descr-table-residence and physician visits.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/descr-table-hpv-seg-residence.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/descr-table-hpv-seg-residence and physician visits.txt
+- /Users/salah/local/git/vdec/hpv-costing-males/results/text-output/diagnostic.txt
+OverWriteOutputFile :true
+OutputFileName :/Users/salah/local/git/vdec/hpv-costing-males/results/analysis1.docx
+OutputFormat :
+PreserveWorkFiles :false
+SaveConvertedFile :false
+## RosewoodSettings
+ConvertOldVersions :false
+ConvertFromVersion :
+Debug :1
+DoNotInlineCSS :false
+MaxConcurrentWorkers :24
+PreserveWorkFiles :false
+ReportAllError :false
+SaveConvertedFile :false
+StyleSheetName :
+TrimCellContents :false
+
+StyleSheetName :
+WorkDirName :
+
+## Document
+ID :
+TemplateFileName :
+InputDir :
+
+### Sections List
+#### Section1
+ID :section1
+InputDir :
+AddPageBreakAfterEachInputFile :true
+Contents :
+<<${include: Table-ASR-age_grp.html}${include: Table-ASR-rha_code.html}${include: Table-ASR-ca_wpg_split.html}${include: Table-ASR-c_year.html}${include: Table-ASR-age-region-1.html}
+${include: avg-cost-hpv.html}${include: hpvmen-sum-cost-hpv.html}${include: hpvmen-sum-cost-seg-hpv.html}${include: hpvmen-cost-stat.html}${include: hpvmen-cost-stat-periods.html}${include: hpvmen-cost-median-periods.html}${include: hpvmen-attr-cost-hpv-1.html}${include: hpvmen-attr-cost-hpv-2.html}${include: hpvmen-attr-cost-yr-hpv-1.html}${include: hpvmen-attr-cost-yr-hpv-2.html}
+${include: hpvmen-cost-stat-age-1.html}${include: hpvmen-cost-stat-age-2.html}${include: hpvmen-cost-stat-age-3.html}${include: hpvmen-cost-stat-age-4.html}${include: hpvmen-cost-stat-age-5.html}${include: hpvmen-cost-stat-age-6.html}
+${include: hpvmen-cost-stat-region-1.html}${include: hpvmen-cost-stat-region-2.html}${include: hpvmen-cost-stat-region-3.html}${include: hpvmen-cost-stat-region-4.html}${include: hpvmen-cost-stat-region-5.html}${include: hpvmen-cost-stat-region-6.html}
+${include: hpvmen-cost-stat-cal_year-1.html}${include: hpvmen-cost-stat-cal_year-2.html}${include: hpvmen-cost-stat-cal_year-3.html}${include: hpvmen-cost-stat-cal_year-4.html}${include: hpvmen-cost-stat-cal_year-5.html}${include: hpvmen-cost-stat-cal_year-6.html}
+${include: descr-table-residence.html}${include: descr-table-residence and physician visits.html}${include: descr-table-hpv-seg-residence.html}${include: descr-table-hpv-seg-residence and physician visits.html}${include: diagnostic.html}>>
+##### Props
+###### Size
+Width :12240
+Height :15840
+Orientation :portrait
+
+###### Margins
+Top :1440
+Right :1440
+Bottom :1440
+Left :1440
+Header :360
+Footer :360
+Gutter :0
+
+
+###### HeadersFooters List
+####### SectionHeaderFooter1
+ID :header1
+HFType :default
+
+####### SectionHeaderFooter2
+ID :footer1
+HFType :default
+
+
+
+
+### HeadersFooters List
+#### Header1
+ID :header1
+InputDir :
+AddPageBreakAfterEachInputFile :false
+Contents :${htmldocx: timestamp}
+
+#### Footer1
+ID :footer1
+InputDir :
+AddPageBreakAfterEachInputFile :false
+Contents :${word: PAGE}
+
+

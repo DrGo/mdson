@@ -196,7 +196,7 @@ func (enc *Encoder) encodeStruct(st reflect.Value, fi *fieldInfo) error {
 		// if finfo.flags&fOmitEmpty != 0 && isEmptyValue(fv) {
 		// 	continue
 		// }
-		enc.log(fi.name(), "fld :", fldInfo.name(), fldInfo.typ, enc.depth)
+		enc.log(fi.name(), "fld :", fldInfo.name(), fldInfo.typ(), enc.depth)
 		switch k {
 		case MarshablePtr:
 			panic("decodeStruct(): pointer not allowed at this point")
@@ -287,7 +287,7 @@ func (enc *Encoder) encodeSlice(sl reflect.Value, fldInfo *fieldInfo) error {
 	}
 
 	//scenario 3: a slice/array of primitive type or pointers to a primitive type, write as an MDSon list
-	enc.log("primitve type:", primitiveType(el.Kind()))
+	enc.log("primitive type:", primitiveType(el.Kind()))
 	if primitiveType(el.Kind()) || (el.Kind() == reflect.Ptr && primitiveType(el.Elem().Kind())) {
 		if sl.Len() == 0 && fldInfo.tag.omit {
 			return nil

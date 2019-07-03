@@ -32,6 +32,7 @@ func NewParser(r io.Reader, options *ParserOptions) (*Parser, error) {
 		scanner:       bufio.NewScanner(r),
 		UI:            ui.NewUI(options.Debug),
 	}
+	// fmt.Println("hp.Debug:", hp.Debug)
 	bufCap := 1024 * 1024 //1 megabyte buffer
 	buf := make([]byte, bufCap)
 	hp.scanner.Buffer(buf, bufCap)
@@ -301,7 +302,7 @@ func (hp *Parser) parseNextLine() Node {
 		return (&sComment)
 	}
 	//scenario 3: list item
-	if trimmed[0] == '-' { //guarnteed to have >=1 char b/c of the empty check above
+	if trimmed[0] == '-' { //guaranteed to have >=1 char b/c of the empty check above
 		item := ""
 		if len(trimmed) > 1 {
 			item = trimmed[1:] //skip the minus
@@ -320,8 +321,8 @@ func (hp *Parser) parseNextLine() Node {
 	}
 	//scenario 7: an array of non-block types
 	key := trimLower(parts[0])
-	value := trimLower(parts[1])
-	if isArray(key) && value == "" {
+	value := parts[1]
+	if isArray(key) && strings.TrimSpace(value) == "" {
 		return newList(key)
 	}
 	//scenario 8: valid key:value pair

@@ -21,7 +21,7 @@ func Test_Parser_parse(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hp, _ := NewParser(strings.NewReader(tt.src), DefaultParserOptions().SetDebug(DebugAll))
+			hp, _ := NewParser(strings.NewReader(tt.src), DefaultParserOptions().SetDebug(DebugSilent))
 			gotTokens, err := hp.parse()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseHDScript() error = %v, wantErr %v", err, tt.wantErr)
@@ -48,9 +48,9 @@ func Test_getHeading(t *testing.T) {
 		line string
 		want heading
 	}{
-		{"0H", "Document", heading{name: "", level: -1}},
-		{"1 H", " #Document", heading{name: "", level: -1}},
-		{"1H empty", "# ", heading{name: "", level: -1}},
+		{"0H", "Document", heading{name: "", level: -1}},    // no #
+		{"1 H", " #Document", heading{name: "", level: -1}}, //# is not the first char
+		{"1H empty", "# ", heading{name: "", level: -1}},    // no name
 		{"1H ", "#  Document", heading{name: "document", level: 1}},
 		{"1H", "#Document", heading{name: "document", level: 1}},
 		{"3H", "###Document", heading{name: "document", level: 3}},
@@ -65,7 +65,7 @@ func Test_getHeading(t *testing.T) {
 }
 
 func TestParseFile(t *testing.T) {
-	const fileName = "/Users/salah/Dropbox/code/go/src/github.com/drgo/mdson/carpenter.mdson"
+	const fileName = "test/carpenter.mdson"
 	tests := []struct {
 		name     string
 		fileName string
@@ -76,13 +76,14 @@ func TestParseFile(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			SetDebug(DebugSilent)
 			gotRoot, err := ParseFile(tt.fileName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(gotRoot, tt.wantRoot) {
-				t.Errorf("ParseFile() = %v, want %v", gotRoot, tt.wantRoot)
+			if gotRoot.ChildByName("OutputFileName").Kind() != "KV Pair" {
+				t.Errorf("ParseFile() = %v, want %v", gotRoot.ChildByName("OutputFileName").Kind(), "fromconfig.docx")
 			}
 		})
 	}

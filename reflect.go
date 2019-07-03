@@ -144,7 +144,7 @@ func getMDsonTagValues(sf reflect.StructField) mdsonTagValues {
 	if !found {
 		return fi //name=""; omit= false
 	}
-	if trimLower(val) == "-" {
+	if strings.TrimSpace(val) == "-" {
 		return mdsonTagValues{name: "-"} //name=""; omit= false
 	}
 	opts := strings.Split(val, ",")

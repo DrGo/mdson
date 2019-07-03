@@ -4,7 +4,7 @@ OverWriteOutputFile: true
 OutputFileName: fromconfig.docx
 Debug: 2
 WorkDirName:
-InputFileNames:
+InputFileNames List:
 - tab1old.html
 - test.html
 
