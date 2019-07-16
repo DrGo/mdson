@@ -311,7 +311,7 @@ func (hp *Parser) parseNextLine() Node {
 	}
 	//scenario 4: block
 	if hd := getHeading(trimmed); hd.level > 0 {
-		/*DEBUG*/ hp.Log(":", line, hd)
+		hp.Log(":", line, hd)
 		return newTokenBlock(hd.name).setLevel(hd.level)
 	}
 	//scenario 6: invalid key:value pair

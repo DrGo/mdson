@@ -14,19 +14,19 @@ func setValue(rv reflect.Value, value string) error {
 	case reflect.String:
 		rv.SetString(value)
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		i, err := strconv.ParseInt(value, 10, 64)
+		i, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
 		if err != nil {
 			return err
 		}
 		rv.SetInt(int64(i))
 	case reflect.Float32, reflect.Float64:
-		f, err := strconv.ParseFloat(value, 64)
+		f, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
 		if err != nil {
 			return err
 		}
 		rv.SetFloat(float64(f))
 	case reflect.Bool:
-		b, err := strconv.ParseBool(value)
+		b, err := strconv.ParseBool(strings.TrimSpace(value))
 		if err != nil {
 			return err
 		}
