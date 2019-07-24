@@ -79,7 +79,7 @@ func (dec *Decoder) decodeBlock(block *ttBlock, rv reflect.Value) error {
 		dec.log("found ID field. Set to", block.Name())
 	}
 	for _, n := range block.children {
-		/*DEBUG*/ dec.log("element:", n.Kind(), n.Name())
+		dec.log("element:", n.Kind(), n.Name())
 		switch n := n.(type) {
 		case *ttBlock: //either array of blocks or a scalar block
 			fld := getSettableField(rv, n.Name()) //find a variable with this array name
