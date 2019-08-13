@@ -166,7 +166,7 @@ func (enc *Encoder) encodeStruct(st reflect.Value, fi *fieldInfo) error {
 		return fmt.Errorf("root value is not a struct")
 	}
 	stType := st.Type()
-	// Create an MDSon block element if the struc is not ananymous
+	// Create an MDSon block element if the struct is not anonymous
 	if !fi.sf.Anonymous {
 		enc.depth++
 		enc.WriteString(strings.Repeat("#", enc.depth) + " " + fi.name() + lineBreak)
