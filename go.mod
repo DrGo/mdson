@@ -1,7 +1,3 @@
-module github.com/drgo/mdson
+module github/drgo/mdson
 
-go 1.13
-
-require github.com/drgo/core v0.0.0
-
-replace github.com/drgo/core => ../core
+go 1.20
