@@ -1,0 +1,10 @@
+<h2>{{.Name}}</h2>
+
+<h2>fields</h2>    
+  {{with .ChildByName "field list"}}
+  {{range $fld := .Children }}
+      <h3>Field Name: {{$fld.Name}}</h3>
+  {{end}}   
+  {{end}}   
+
+

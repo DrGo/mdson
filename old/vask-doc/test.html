@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+
+  <title>VDEC-slim</title>
+
+  <link href='https://fonts.googleapis.com/css?family=Roboto:300' rel='stylesheet' type='text/css'>
+
+  <link rel="stylesheet" href="./../assets/css/styles.css">
+
+<style>
+@import url(http://fonts.googleapis.com/css?family=Roboto:400,100,300,500,700);
+body {
+  margin: 0;
+  padding: 0px;
+  font-family: 'Roboto', 'Times New Roman', Times, serif, sans-serif;
+  line-height: 160%;
+  color: #555
+}
+
+h1 {
+  font-weight: normal;
+  font-size: 2em;
+  color: #147cb1
+}
+
+h2 {
+  font-weight: normal;
+  font-size: 1.8em;
+  color: #147cb1;
+  margin-top: 80px;
+  margin-bottom: 50px;
+}
+
+.bluebox h1 {
+  color: white;
+}
+
+.header {
+  position: fixed;
+  height: 100px;
+  background: white;
+  width: 100%;
+  z-index: 20;
+  box-shadow: rgba(0, 0, 0, 0.15) 1px 1px 14px;
+}
+
+.headerbox {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.padding {
+  height: 80px;
+}
+
+.logo {
+  float: left;
+  margin-left: 20px;
+  font-size: 0.9em;
+  line-height: 120%;
+  letter-spacing: 2px;
+}
+
+.top_nav_button {
+  float: right;
+}
+
+.nav_button {
+  padding: 20px;
+  height: 50px;
+  font-size: 0.8em;
+  text-align: center;
+  margin-top: 20px;
+  margin-right: 10px;
+  border: 0px;
+  border-radius: 4px;
+  background: white;
+  color: #1b1464;
+}
+
+
+.faq {
+  background: #1b1464;
+  color: #ccc;
+  box-shadow: -1px 6px 6px -3px rgba(0, 0, 0, 0.22);
+}
+
+.faq:hover {
+  background: #147cb1;
+}
+
+.phonebox {
+  float: right;
+  margin-top: 40px;
+}
+
+.phone-screen {
+  color: red;
+  width: 288px;
+  height: 512px;
+  background: blue;
+  position: relative;
+  top: -657px;
+  left: 25px;
+  color: white;
+  overflow: hidden;
+}
+
+.phone-screen-interior {
+  padding-top: 0px;
+  text-align: center;
+  font-family: helvetica;
+  font-size: 3em;
+  width: 200px;
+  padding-left: 0px;
+  line-height: 120%;
+  text-decoration: blink;
+  margin-top: 80px;
+}
+
+.phonepic {
+  height: 700px;
+
+}
+
+.taft {
+  position: absolute;
+}
+
+
+.banner-box {
+  background: #147bc1;
+  color: white;
+  min-height: 460px;
+}
+
+.banner-box h1 {
+  color: white;
+  font-size: 3em;
+  line-height: 150%;
+}
+
+.banner-blurb {
+  padding-top: 130px;
+  max-width: 510px;
+  float: left; 
+}
+
+@media only screen and (max-width: 870px) {
+  .banner-box {
+    min-height: 320px;
+  }
+
+  .banner-blurb {
+    padding-top: 60px;
+  }
+}
+
+@media only screen and (max-width: 570px) {
+  .banner-box {
+    min-height: 340px;
+  }
+}
+
+@media only screen and (max-width: 470px) {
+  .banner-box {
+    min-height: 390px;
+  }
+}
+
+.mission-blurb {
+
+  padding-top: 100px;
+  width: 74%
+}
+
+.mission-blurb h1 {
+  font-size: 1.8em;
+  margin-bottom: 40px;
+  line-height: 160%;
+  color: #147bc1;
+}
+
+.services-box {
+  background: #147bc1;
+  color: white;
+  height: 610px;
+}
+
+.services-blurb {
+  color: white;
+  max-width: 500px;
+  padding-top: 190px;
+  margin-left: 50%
+}
+
+.services-blurb h1 {
+  color: white;
+}
+
+.whitebox {}
+
+.greybox {
+  background: #f5f5f5;
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding-left: 30px;
+}
+
+.blurb {
+  float: left;
+  max-width: 510px;
+  color: white;
+}
+
+.smallphone {
+  position: relative;
+  top: -350px;
+
+}
+
+.phonepic-small {
+  height: 627px;
+  z-index: 0;
+}
+
+.inlay {
+  position: absolute;
+  width: 260px;
+  height: 460px;
+  left: 22px;
+  top: 60px;
+  z-index: 0;
+}
+
+@media only screen and (max-width: 1024px) {
+
+  .services-box {
+    height: 720px;
+  }
+
+  .phonepic-small {
+    display: none
+  }
+
+  .smallphone {
+    margin: 0 auto;
+    position: static;
+    width: 260px;
+  }
+
+  .inlay {
+    position: static;
+  }
+
+  .services-blurb {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding-top: 20px;
+    width: 100%;
+    margin-bottom: 30px;
+  }
+}
+
+
+
+
+.publishers {
+  margin-top: 120px;
+
+}
+
+.publogo {
+  float: left;
+  width: 250px;
+  height: 170px;
+}
+
+.publogo img {
+  width: 160px;
+  filter: gray;
+  -webkit-filter: grayscale(100%);
+
+}
+
+
+
+.people {
+  padding-top: 20px;
+
+}
+
+.person {
+  float: left;
+  max-width: 500px;
+  height: 400px;
+}
+
+.person img {
+  width: 130px;
+  float: left;
+}
+
+.person-name {
+  font-weight: bold;
+  margin-top: 20px;
+  font-size: 1.1em;
+}
+
+.person-title {
+  font-size: 1.1em;
+}
+
+.quotebox {
+  float: left;
+  width: 60%;
+  min-width: 100px;
+  font-size: 0.9em;
+  padding-right: 20px;
+}
+
+.headbox {
+  float: left;
+  margin-right: 20px;
+}
+
+
+.footer {
+  width: 100%;
+  background: #147bc1;
+  height: 650px;
+  color: white;
+}
+
+#laptop {
+  width: 251px;
+  margin-bottom: 40px
+}
+
+.footbox {
+  padding-top: 80px;
+  text-align: center;
+}
+
+.footbox h1 {
+  color: white;
+  font-size: 2.5em;
+  margin-bottom: 40px;
+  line-height: 150%;
+}
+
+.footbutt {
+  color: white;
+  border-radius: 4px;
+  background: #1b1464;
+  border: 0px;
+  padding: 15px;
+  font-size: 0.8em;
+  margin: 20px;
+
+}
+
+@media only screen and (max-width: 870px) {
+  .footbox {
+    text-align: left;
+    max-width: 1000px;
+  }
+
+  .footbutt {
+    width: 90%;
+    margin: 0 auto;
+    margin-bottom: 20px;
+  }
+
+  .mobile-hide {
+    display: none
+  }
+
+  .quotebox {
+    width: 100%;
+  }
+
+}
+</style>
+    Achieving these in tandem will be vital to building a more sustainable ecosystem where great journalism can
+          flourish. We are keen to see it succeed.”
+
+          <div class="person-name">Tony Danker</div>
+          <div class="person-title">Chief Strategy Officer, Guardian News & Media</div>
+        </div>
+      </div>
+
+      <div style="clear:both"></div>
+    </div>
+  </div>
+</div>
+</div></div>
+<div class="footer">
+  <div class="container">
+    <div class="footbox">
+      <img class="mobile-hide" id="laptop" src="http://idlewords.com/images/amp/computer_x.png">
+
+      <h1>We're making the web worse.</h1>
+
+      <p>Dozens of publishers and technology companies have come together to create this unfortunate initiative.
+        However, it is 2015, and websites should be small and fast enough to render on mobile devices rapidly using
+        minimal resources. The only reason they are not is because we are addicted to tracking, surveillance,
+        gratuitous animation, and bloated, inefficient frameworks. Requiring a readable version of these sites is a
+        great idea. Let's take it one step further and make it the only version.
+      </p>
+      <button class="footbutt">VISIT US ON GITHUB</button>
+      <button class="footbutt">TECHNICAL INTRODUCTION</button>
+    </div>
+  </div>
+</div>
+
+</body>
+
+</html>

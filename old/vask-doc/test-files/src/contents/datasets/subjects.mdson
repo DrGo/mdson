@@ -1,0 +1,14 @@
+# subjects
+description: 
+<<<
+contains info on study subjects
+>>>
+field list:
+- subject_id
+- entry_date
+- exit_date
+- status
+
+## See also
+
+

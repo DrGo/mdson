@@ -1,0 +1,28 @@
+# VASK
+Version : 0.1
+// printed on main screen/window title
+Title:          
+// if empty, use current dir
+Root Dir:
+// if empty, use "templates" dir
+Template Dir:   
+// if empty, use "dist" dir
+Output Dir:     
+Verbose: true
+
+## Tasks:
+### Task 1 
+Action: Render
+SrcGlob: *.mdson
+SrcFiles:
+DestFile: 
+TemplateFile: 
+
+### Task 2
+Action: Append
+
+
+
+
+
+

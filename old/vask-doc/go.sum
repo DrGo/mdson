@@ -1,0 +1,8 @@
+github.com/blang/vfs v1.0.0 h1:AUZUgulCDzbaNjTRWEP45X7m/J10brAptZpSRKRZBZc=
+github.com/blang/vfs v1.0.0/go.mod h1:jjuNUc/IKcRNNWC9NUCvz4fR9PZLPIKxEygtPs/4tSI=
+github.com/drgo/core v0.0.0-20180919052606-b9476d56599c h1:EcVfvrP32EfF3wioAS3tWDY/K4zk+Qwxq1UCblOUU50=
+github.com/drgo/core v0.0.0-20180919052606-b9476d56599c/go.mod h1:ZcL6w1MAFquH8Vw6JiTIVbRlNBYvmI8bJwTMQBSmDSA=
+github.com/drgo/mdson v0.0.0-20180830180140-1bae7966be50 h1:W0S7N2vpZ1+fc8zH336sZs3DTmaNtvVweOqxWYjpyeA=
+github.com/drgo/mdson v0.0.0-20180830180140-1bae7966be50/go.mod h1:yuCtWAn8il4BMiheu4ylzse2z9omSfqzfu5bnGbiqLw=
+github.com/drgo/mdson v0.0.0-20180927155320-d0b19378f9c0 h1:iRz8X7/jNFv41OlJvoJG5yzfy0+w3Dbf/of3k+5yaxI=
+github.com/drgo/mdson v0.0.0-20180927155320-d0b19378f9c0/go.mod h1:yuCtWAn8il4BMiheu4ylzse2z9omSfqzfu5bnGbiqLw=
