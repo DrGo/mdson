@@ -178,16 +178,24 @@ type ttBlock struct {
 	ttBase
 	level    int
 	children []Node
+	attribs map[string]string 
 }
 
 func newTokenBlock(name string) *ttBlock {
-	return &ttBlock{ttBase: ttBase{kind: "Block", key: name}}
+	return &ttBlock{ttBase: ttBase{kind: "Block", key: name},
+		attribs: make(map[string]string)}
 }
 
 func (blk ttBlock) String() string {
 	var sb strings.Builder
 	sb.Grow(10 * 1024)
 	sb.WriteString(blk.ttBase.String() + " " + strconv.Itoa(blk.level) + "\n")
+	for k, v := range blk.attribs {
+		sb.WriteString(k)
+		sb.WriteString(" = ")
+		sb.WriteString(v)
+		sb.WriteRune('\n')
+	}
 	for _, t := range blk.children {
 		sb.WriteString(" " + t.String() + "\n")
 	}
@@ -285,8 +293,10 @@ func (list ttList) String() string {
 	var sb strings.Builder
 	sb.Grow(10 * 1024)
 	sb.WriteString(list.ttBase.String())
+	sb.WriteRune('\n')
 	for _, li := range list.items {
-		sb.WriteString(" " + li.String())
+		sb.WriteString(li.String())
+	sb.WriteRune('\n')
 	}
 	return sb.String()
 }

@@ -37,32 +37,32 @@ func NotNil(t *testing.T, obj any) {
 	}
 }
 
-// func TestLines(t *testing.T) {
-// 	const data = `line 1
-// line 2
-// line 3	
-// `
-// 	lines, err := newLines(strings.NewReader(data))
-// 	Equal(t, err, nil)
-// 	NotNil(t, lines)
-// 	Equal(t, lines.rowNum, 0)
-// 	// t.Logf("%s", lines)
-// 	//    t.Log(lines.rows[0])
-// 	// t.Log(lines)
-// 	line, ok := lines.next()
-// 	Equal(t, line, "line 1")
-// 	Equal(t, ok, true)
-// 	lines, err = newLinesFromFile("README.md")
-// 	Equal(t, err, nil)
-// 	NotNil(t, lines)
+//	func TestLines(t *testing.T) {
+//		const data = `line 1
 //
-// 	//   t.Log(lines.rows[0])
-// 	// t.Log(lines)
-// 	// t.Log(lines.next())
-// }
-
-func TestParse(t *testing.T) {
-	const data =`
+// line 2
+// line 3
+// `
+//
+//		lines, err := newLines(strings.NewReader(data))
+//		Equal(t, err, nil)
+//		NotNil(t, lines)
+//		Equal(t, lines.rowNum, 0)
+//		// t.Logf("%s", lines)
+//		//    t.Log(lines.rows[0])
+//		// t.Log(lines)
+//		line, ok := lines.next()
+//		Equal(t, line, "line 1")
+//		Equal(t, ok, true)
+//		lines, err = newLinesFromFile("README.md")
+//		Equal(t, err, nil)
+//		NotNil(t, lines)
+//
+//		//   t.Log(lines.rows[0])
+//		// t.Log(lines)
+//		// t.Log(lines.next())
+//	}
+const data = `
 // comments will be removed before processing	
 // a property (prop) is essentially like a variable; it will be removed from the text
 // but made available to the rendering program as part of the DOM
@@ -106,12 +106,25 @@ func TestParse(t *testing.T) {
 
 
 `
-SetDebug(DebugAll)
-n, err := Parse(strings.NewReader(data))
+
+func TestParse(t *testing.T) {
+	SetDebug(DebugAll)
+	n, err := Parse(strings.NewReader(data))
 	Equal(t, err, nil)
 	if err != nil {
 		return
 	}
 	t.Logf("%+v", n)
-	Equal(t,n.Kind(),"block")
+	Equal(t, n.Kind(), "Block")
 }
+
+func TestPrinter(t *testing.T) {
+
+	n, err := Parse(strings.NewReader(data))
+	Equal(t, err, nil)
+	if err != nil {
+		return
+	}
+	t.Logf("\n\n%s\n", newPrinter().print(n)) 
+}
+

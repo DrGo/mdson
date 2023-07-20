@@ -63,24 +63,24 @@ func ParseFile(fileName string) (root Node, err error) {
 
 // Parse parses an MDSon source into an an AST
 func Parse(r io.Reader) (root Node, err error) {
-	hp, err := NewParser(r, DefaultParserOptions().SetDebug(debug))
+	p, err := NewParser(r, DefaultParserOptions().SetDebug(debug))
 	if err != nil {
 		return nil, err
 	}
-	return hp.parse()
+	return p.parse()
 }
 
 // Err return parser error state after last advance() call
-func (hp *Parser) Err() error {
-	return hp.errorState
+func (p *Parser) Err() error {
+	return p.errorState
 }
 
 // Parse parses an MDson source
 // FIXME: validate block name uniqueness
-func (hp *Parser) parse() (root *ttBlock, err error) {
+func (p *Parser) parse() (root *ttBlock, err error) {
 	root = newTokenBlock("root")
 	for {
-		do, err := hp.parseBlock(root)
+		do, err := p.parseBlock(root)
 		if err != nil {
 			return throw(err)
 		}
@@ -176,26 +176,12 @@ func (p *Parser) parseBlock(parent *ttBlock) (bool, error) {
 			if err != nil { //error
 				return false, fmt.Errorf("line %d: %s", p.lineNum, err)
 			}
-			// if !ok { //end of file
-			// 	return false, nil
-			// }
 		case *ttKVPair:
 			// if parent.isArray() {
 			// 	return false, ESyntaxError{hp.lineNum, "key-value pairs not permitted within a list"}
 			// }
 			p.Log("inside parseBlock.ttkvpair:", n.key, n.value)
-			// if n.value != "" {
-			parent.addChild(n)
-			// continue
-			// }
-			//value is empty, is this the start of free text entry
-			// _, err := hp.parseFreeTextOrKVP(parent, n)
-			// if err != nil { //error
-			// 	return false, fmt.Errorf("line %d: %s", hp.lineNum, err)
-			// }
-			// if !ok { //end of file
-			// 	return false, nil
-			// }
+			parent.attribs[n.key] = n.value
 		default:
 			panic(fmt.Sprintf("unhandled token type in parseBlock():line %d: %v reflect.type=%s", p.lineNum, n, reflect.TypeOf(n).String()))
 		}
@@ -203,17 +189,21 @@ func (p *Parser) parseBlock(parent *ttBlock) (bool, error) {
 }
 
 func (p *Parser) parseList(block *ttBlock, list *ttList) (bool, error) {
-	for {
-		n := p.advance()
+	loop:for {
+		n := p.peek()		
 		switch n := n.(type) {
+		case *ttComment:
+			_ = p.advance()
+			continue
 		case *ttListItem:
 			list.addItem(n)
+			_ = p.advance()
 		default:
-			break
+			break loop
 		}
+	}
 		block.addChild(list)
 		return true, nil
-	}
 }
 
 // func (hp *Parser) parseFreeTextOrKVP(block *ttBlock, openKVP *ttKVPair) (bool, error) {
