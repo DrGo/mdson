@@ -248,7 +248,8 @@ type ttKVPair struct {
 }
 
 func newKVPair(key, value string) *ttKVPair {
-	return &ttKVPair{ttBase: ttBase{kind: "KV Pair", key: key}, value: value}
+	return &ttKVPair{ttBase: ttBase{kind: "KV Pair", key: strings.TrimSpace( key)},
+		value: strings.TrimSpace(value)}
 }
 
 func (kvp ttKVPair) String() string {
@@ -301,6 +302,15 @@ func (list *ttList) addItem(li *ttListItem) *ttList {
 
 type ttListItem struct {
 	ttBase
+}
+
+type ttTextLine struct {
+	ttBase
+}
+
+
+func newTextLine(item string) *ttTextLine {
+	return &ttTextLine{ttBase: ttBase{kind: "TextLine", key: item}}
 }
 
 func newListItem(item string) *ttListItem {

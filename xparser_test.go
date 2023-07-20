@@ -2,12 +2,11 @@ package mdson
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 	"testing"
 )
 
-func Test_Parser_parse(t *testing.T) {
+func Test_oldparse(t *testing.T) {
 	tests := []struct {
 		name    string
 		src     string
@@ -21,7 +20,7 @@ func Test_Parser_parse(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hp, _ := NewParser(strings.NewReader(tt.src), DefaultParserOptions().SetDebug(DebugSilent))
+			hp, _ := NewParser(strings.NewReader(tt.src), DefaultParserOptions().SetDebug(DebugAll))
 			gotTokens, err := hp.parse()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseHDScript() error = %v, wantErr %v", err, tt.wantErr)
@@ -44,27 +43,28 @@ Version: 1.0.0`
 
 func Test_getHeading(t *testing.T) {
 	tests := []struct {
-		name string
+		tname string
 		line string
-		want heading
+		name string
+		level int
 	}{
-		{"0H", "Document", heading{name: "", level: -1}},    // no #
-		{"1 H", " #Document", heading{name: "", level: -1}}, //# is not the first char
-		{"1H empty", "# ", heading{name: "", level: -1}},    // no name
-		{"1H ", "#  Document", heading{name: "document", level: 1}},
-		{"1H", "#Document", heading{name: "document", level: 1}},
-		{"3H", "###Document", heading{name: "document", level: 3}},
+		{"0H", "Document", "",  -1},    // no #
+		{"1 H", " #Document", "",  -1}, //# is not the first char
+		{"1H empty", "# ", "",  -1},    // no name
+		{"1H ", "#  Document", "document",  1},
+		{"1H", "#Document", "document",  1},
+		{"3H", "###Document", "document",  3},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := getHeading(tt.line); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getHeading() = %v, want %v", got, tt.want)
+		t.Run(tt.tname, func(t *testing.T) {
+			if n,l := getBlockInfo(tt.line); n!=tt.name || l != tt.level  {
+				t.Errorf("getBlockInfo() = %s,%d want %s,%d", n,l, tt.name, tt.level)
 			}
 		})
 	}
 }
 
-func TestParseFile(t *testing.T) {
+func TestOldFile(t *testing.T) {
 	const fileName = "test/carpenter.mdson"
 	tests := []struct {
 		name     string

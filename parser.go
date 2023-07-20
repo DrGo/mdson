@@ -12,7 +12,7 @@ import (
 	"github.com/drgo/core/ui"
 )
 
-//Parser type for parsing MDSon files and text into a a token tree
+// Parser type for parsing MDSon files and text into a a token tree
 type Parser struct {
 	ParserOptions
 	ui.UI
@@ -24,10 +24,10 @@ type Parser struct {
 	scanner     *bufio.Scanner
 }
 
-//NewParser returns an initialized MDsonParser
-//FIXME: no need to expose since parser's funcs are not exposed
+// NewParser returns an initialized MDsonParser
+// FIXME: no need to expose since parser's funcs are not exposed
 func NewParser(r io.Reader, options *ParserOptions) (*Parser, error) {
-	hp := &Parser{
+	p := &Parser{
 		ParserOptions: *options,
 		scanner:       bufio.NewScanner(r),
 		UI:            ui.NewUI(options.Debug),
@@ -35,21 +35,20 @@ func NewParser(r io.Reader, options *ParserOptions) (*Parser, error) {
 	// fmt.Println("hp.Debug:", hp.Debug)
 	bufCap := 1024 * 1024 //1 megabyte buffer
 	buf := make([]byte, bufCap)
-	hp.scanner.Buffer(buf, bufCap)
+	p.scanner.Buffer(buf, bufCap)
 	//prime the scanner
-	if hp.scanner.Scan() {
-		hp.nextLine = hp.scanner.Text()
-		return hp, nil
+	if p.scanner.Scan() {
+		p.nextLine = p.scanner.Text()
+		return p, nil
 	}
-	//error from the start
-	if hp.scanner.Err() == nil { //eof reached
+	//Scan() failed from the start; either EOF or an error
+	if p.scanner.Err() == nil { //eof reached
 		return nil, &errEOF{}
 	}
-	//read error
-	return nil, hp.scanner.Err()
+	return nil, p.scanner.Err()
 }
 
-//ParseFile parses an MDSon source file into an a
+// ParseFile parses an MDSon source file into an a
 func ParseFile(fileName string) (root Node, err error) {
 	file, err := os.Open(fileName)
 	if err != nil {
@@ -62,7 +61,7 @@ func ParseFile(fileName string) (root Node, err error) {
 	return root, nil
 }
 
-//Parse parses an MDSon source into an an AST
+// Parse parses an MDSon source into an an AST
 func Parse(r io.Reader) (root Node, err error) {
 	hp, err := NewParser(r, DefaultParserOptions().SetDebug(debug))
 	if err != nil {
@@ -71,13 +70,13 @@ func Parse(r io.Reader) (root Node, err error) {
 	return hp.parse()
 }
 
-//Err return parser error state after last advance() call
+// Err return parser error state after last advance() call
 func (hp *Parser) Err() error {
 	return hp.errorState
 }
 
-//Parse parses an MDson source
-//FIXME: validate block name uniqueness
+// Parse parses an MDson source
+// FIXME: validate block name uniqueness
 func (hp *Parser) parse() (root *ttBlock, err error) {
 	root = newTokenBlock("root")
 	for {
@@ -89,156 +88,165 @@ func (hp *Parser) parse() (root *ttBlock, err error) {
 			break
 		}
 	}
-	if len(root.children) != 1 {
-		return throw("there must be only exactly one first-level (#) heading")
-	}
+	// if len(root.children) != 1 {
+	// 	return throw("there must be only exactly one first-level (#) heading")
+	// }
 	//discard the root we added above
-	if root, ok := root.children[0].(*ttBlock); ok {
-		return root, nil
-	}
-	return throw("no valid first-level (#) heading")
+	// if root, ok := root.children[0].(*ttBlock); ok {
+	return root, nil
+	// }
+	// return throw("no valid first-level (#) heading")
 }
 
-func (hp *Parser) advance() Node {
-	iFace := hp.parseNextLine()
-	iFace.setLineNum(hp.lineNum)
-	if hp.Debug >= DebugAll {
-		switch t := iFace.(type) {
+// peek parses the nextline without advancing the cursor or changing lineNum
+func (p *Parser) peek() Node {
+	if p.Debug >= DebugAll {
+		p.Log("peek()", p.lineNum, ":", p.nextLine)
+	}
+	return p.parseLine(p.nextLine)
+}
+
+func (p *Parser) advance() Node {
+	if !p.readNextLine() {
+		return p.getErrorStatus()
+	}
+	p.Log("advance()", p.lineNum, ":", p.currentLine)
+	n := p.parseLine(p.currentLine)
+	n.setLineNum(p.lineNum)
+	if p.Debug >= DebugAll {
+		switch t := n.(type) {
 		case *ttKVPair:
 		default:
-			/*DEBUG*/ hp.Log(hp.lineNum, t)
+			/*DEBUG*/ p.Log(p.lineNum, t)
 		}
 	}
-	return iFace
+	return n
 }
 
-//parseBlock return values: false+nil=EOF, false+!nil=error,true+ nil continue
-func (hp *Parser) parseBlock(parent *ttBlock) (bool, error) {
+// parseBlock return values: false+nil=EOF, false+!nil=error,true+ nil continue
+func (p *Parser) parseBlock(parent *ttBlock) (bool, error) {
 	for {
-		iFace := hp.advance()
-		hp.Log("after advance()-->line", hp.lineNum, iFace)
-		switch node := iFace.(type) {
+		n := p.advance()
+		p.Log("after advance()-->line", p.lineNum, n)
+		switch n := n.(type) {
 		case *ttReadError:
-			return false, fmt.Errorf("line %d: %s", hp.lineNum, node.err)
+			return false, fmt.Errorf("line %d: %s", p.lineNum, n.err)
 		case *ttSyntaxError:
 			//TODO: convert to EsynatxError
-			return false, fmt.Errorf("line %d: %s", hp.lineNum, node.err)
+			return false, fmt.Errorf("line %d: %s", p.lineNum, n.err)
 		case *ttComment, *ttEmpty:
 			continue
 		case *ttEOF:
 			return false, nil
+		case *ttTextLine:
 		case *ttListItem:
-			return false, fmt.Errorf("line %d: '-' outside a list", hp.lineNum)
+			return false, fmt.Errorf("line %d: '-' outside a list", p.lineNum)
 		case *ttBlock:
 			var ok bool
 			var err error
-			if hp.Debug >= DebugAll {
-				fmt.Println("parseblock: parent", parent.Name(), parent.level, "current", node.Name(), node.level)
+			if p.Debug >= DebugAll {
+				fmt.Println("parseblock: parent", parent.Name(), parent.level, "current", n.Name(), n.level)
 			}
 		loop:
 			for { //loop to process all children
 				switch {
-				case node.level-parent.level > 1: ////handle nesting errors
-					return false, fmt.Errorf("line %d: block too deeply nested for its level", hp.lineNum)
-				case node.level-parent.level == 1: // this is a child
-					ok, err = hp.parseBlock(node) //parse it passing this token as a parent
+				// case n.level-parent.level > 1: ////handle nesting errors
+				// return false, fmt.Errorf("line %d: block level %d is too deeply nested for its level", hp.lineNum)
+				case n.level-parent.level == 1: // this is a child
+					ok, err = p.parseBlock(n) //parse it passing this token as a parent
 					if err != nil {
 						return false, err
 					}
-					parent.addChild(node)
-					if !ok {
+					parent.addChild(n)
+					if !ok { //FIXME: verify this is correct
 						break loop
 					}
-					if hp.pendingLeaf != nil { //do we have unhandled blocken?
-						node, _ = hp.pendingLeaf.(*ttBlock)
-						hp.pendingLeaf = nil
+					if p.pendingLeaf != nil { //do we have unhandled blocken?
+						n, _ = p.pendingLeaf.(*ttBlock)
+						p.pendingLeaf = nil
 						continue
 					}
 				default: //sibling or higher
-					hp.pendingLeaf = node //park it in pendingLeaf for ancestors to handle
+					p.pendingLeaf = n //park it in pendingLeaf for ancestors to handle
 					return true, nil
 				}
 			}
 		case *ttList:
-			_, err := hp.parseList(parent, node)
+			_, err := p.parseList(parent, n)
 			if err != nil { //error
-				return false, fmt.Errorf("line %d: %s", hp.lineNum, err)
+				return false, fmt.Errorf("line %d: %s", p.lineNum, err)
 			}
 			// if !ok { //end of file
 			// 	return false, nil
 			// }
 		case *ttKVPair:
-			if parent.isArray() {
-				return false, ESyntaxError{hp.lineNum, "key-value pairs not permitted within a list"}
-			}
-			hp.Log("inside parseBlock.ttkvpair:", node.key, node.value)
-			if node.value != "" {
-				parent.addChild(node)
-				continue
-			}
+			// if parent.isArray() {
+			// 	return false, ESyntaxError{hp.lineNum, "key-value pairs not permitted within a list"}
+			// }
+			p.Log("inside parseBlock.ttkvpair:", n.key, n.value)
+			// if n.value != "" {
+			parent.addChild(n)
+			// continue
+			// }
 			//value is empty, is this the start of free text entry
-			_, err := hp.parseFreeTextOrKVP(parent, node)
-			if err != nil { //error
-				return false, fmt.Errorf("line %d: %s", hp.lineNum, err)
-			}
+			// _, err := hp.parseFreeTextOrKVP(parent, n)
+			// if err != nil { //error
+			// 	return false, fmt.Errorf("line %d: %s", hp.lineNum, err)
+			// }
 			// if !ok { //end of file
 			// 	return false, nil
 			// }
 		default:
-			panic(fmt.Sprintf("unhandled token type in parseBlock():line %d: %v reflect.type=%s", hp.lineNum, node, reflect.TypeOf(iFace).String()))
+			panic(fmt.Sprintf("unhandled token type in parseBlock():line %d: %v reflect.type=%s", p.lineNum, n, reflect.TypeOf(n).String()))
 		}
 	}
 }
 
-func (hp *Parser) parseList(block *ttBlock, list *ttList) (bool, error) {
-	nextLine := trimLeftSpace(hp.nextLine)
-	i := 0
-	for strings.HasPrefix(nextLine, "-") {
-		i++
-		iFace := hp.advance()
-		// fmt.Println("iteration:", i, "current line", hp.currentLine, "next line", hp.nextLine)
-		li, ok := iFace.(*ttListItem)
-		if !ok { //just sanity check
-			return false, fmt.Errorf("something went wrong in parsing list items in line %d", hp.lineNum)
+func (p *Parser) parseList(block *ttBlock, list *ttList) (bool, error) {
+	for {
+		n := p.advance()
+		switch n := n.(type) {
+		case *ttListItem:
+			list.addItem(n)
+		default:
+			break
 		}
-		list.addItem(li)
-		nextLine = trimLeftSpace(hp.nextLine)
-	}
-	block.addChild(list)
-	return true, nil
-}
-
-func (hp *Parser) parseFreeTextOrKVP(block *ttBlock, openKVP *ttKVPair) (bool, error) {
-	nextLine := trimLeftSpace(hp.nextLine)
-	if strings.HasPrefix(nextLine, "<<") { //next line starts with '<<' or '<<<', parse free text
-		ls, err := hp.parseFreeText(openKVP)
-		if err != nil {
-			return false, err
-		}
-		hp.Log(ls)
-		block.addChild(ls)
+		block.addChild(list)
 		return true, nil
 	}
-	//this was just an empty kvp, add
-	block.addChild(openKVP)
-	return true, nil
-
 }
 
-func (hp *Parser) getErrorStatus() Node {
-	switch hp.Err().(type) {
+// func (hp *Parser) parseFreeTextOrKVP(block *ttBlock, openKVP *ttKVPair) (bool, error) {
+// 	nextLine := trimLeftSpace(hp.nextLine)
+// 	if strings.HasPrefix(nextLine, "<<") { //next line starts with '<<' or '<<<', parse free text
+// 		ls, err := hp.parseFreeText(openKVP)
+// 		if err != nil {
+// 			return false, err
+// 		}
+// 		hp.Log(ls)
+// 		block.addChild(ls)
+// 		return true, nil
+// 	}
+// 	//this was just an empty kvp, add
+// 	block.addChild(openKVP)
+// 	return true, nil
+//
+// }
+
+func (p *Parser) getErrorStatus() Node {
+	switch p.Err().(type) {
 	case *errEOF: //eof reached
 		return &sEOF
 	default: //read error, return it
-		return newReadError(hp.scanner.Err())
+		return newReadError(p.scanner.Err())
 	}
 }
 
-func (hp *Parser) isEOF() bool {
-	if hp.Err() == nil {
+func (p *Parser) isEOF() bool {
+	if p.Err() == nil {
 		return false
 	}
-	switch hp.Err().(type) {
+	switch p.Err().(type) {
 	case *errEOF: //eof reached
 		return true
 	default: //read error, return it
@@ -246,127 +254,117 @@ func (hp *Parser) isEOF() bool {
 	}
 }
 
-//parseFreeText parses free text fields
-func (hp *Parser) parseFreeText(openKVP *ttKVPair) (*ttLiteralString, error) {
-	contents := ""
-	oTag, cTag := "<<", ">>" // we are in a block that starts with << or <<<
-	eol := ""
-	first := true
-loop:
-	for { //accumulate all text until cTag or an error
-		ok := hp.readNextLine()
-		// hp.Log("PFT()", hp.lineNum, "RNL() returned:", ok, hp.errorState)
-		switch {
-		case !ok: //error or nothing left to parse
-			if !hp.isEOF() {
-				return nil, hp.errorState
-			}
-			// end of input, break out of loop
-			break loop
-		case first: //first line in free text block
-			if strings.HasPrefix(hp.currentLine, "<<<") { // is this a literal block
-				oTag = "<<<"
-				cTag = ">>>"
-				eol = lineBreak
-			}
-			contents += strings.TrimPrefix(hp.currentLine, oTag) + eol //store rest of first line
-			//handle the situation where there is only one text line  ie << one line here >>
-			if strings.HasSuffix(hp.currentLine, cTag) {
-				contents = strings.TrimSuffix(contents, cTag) + eol
-				break loop
-			}
-			first = false
-		case strings.HasSuffix(hp.currentLine, cTag): //the end of the text block
-			contents += strings.TrimSuffix(hp.currentLine, cTag) + eol
-			break loop
-		default: //other lines in between
-			contents += hp.currentLine + eol
-		}
-	}
-	return newLiteralString(openKVP.key, contents), nil
-}
-
-func (hp *Parser) parseNextLine() Node {
-	if !hp.readNextLine() {
-		return hp.getErrorStatus()
-	}
-	line := hp.currentLine
-	hp.Log("parseNextLine()", hp.lineNum, ":", line)
-	trimmed := trimLeftSpace(line)
+// parseFreeText parses free text fields
+//
+//	func (p *Parser) parseFreeText(openKVP *ttKVPair) (*ttLiteralString, error) {
+//		contents := ""
+//		oTag, cTag := "<<", ">>" // we are in a block that starts with << or <<<
+//		eol := ""
+//		first := true
+//
+// loop:
+//
+//		for { //accumulate all text until cTag or an error
+//			ok := p.readNextLine()
+//			// hp.Log("PFT()", hp.lineNum, "RNL() returned:", ok, hp.errorState)
+//			switch {
+//			case !ok: //error or nothing left to parse
+//				if !p.isEOF() {
+//					return nil, p.errorState
+//				}
+//				// end of input, break out of loop
+//				break loop
+//			case first: //first line in free text block
+//				if strings.HasPrefix(p.currentLine, "<<<") { // is this a literal block
+//					oTag = "<<<"
+//					cTag = ">>>"
+//					eol = lineBreak
+//				}
+//				contents += strings.TrimPrefix(p.currentLine, oTag) + eol //store rest of first line
+//				//handle the situation where there is only one text line  ie << one line here >>
+//				if strings.HasSuffix(p.currentLine, cTag) {
+//					contents = strings.TrimSuffix(contents, cTag) + eol
+//					break loop
+//				}
+//				first = false
+//			case strings.HasSuffix(p.currentLine, cTag): //the end of the text block
+//				contents += strings.TrimSuffix(p.currentLine, cTag) + eol
+//				break loop
+//			default: //other lines in between
+//				contents += p.currentLine + eol
+//			}
+//		}
+//		return newLiteralString(openKVP.key, contents), nil
+//	}
+func (p *Parser) parseLine(line string) Node {
 	//scenario 1 : empty line
-	if trimmed == "" {
+	if line == "" {
 		return (&sEmpty)
 	}
 	//scenario 2: commented line
-	if strings.HasPrefix(trimmed, "//") {
+	if strings.HasPrefix(line, "//") {
 		return (&sComment)
 	}
+	//get the first unicode coding point guaranteed to have >=1 char b/c of the empty check above
+	switch ch := []rune(line)[0]; ch {
 	//scenario 3: list item
-	if trimmed[0] == '-' { //guaranteed to have >=1 char b/c of the empty check above
-		item := ""
-		if len(trimmed) > 1 {
-			item = trimmed[1:] //skip the minus
-		}
+	case '-':
+		item := line[1:] //skip the minus
 		return newListItem(item)
-	}
 	//scenario 4: block
-	if hd := getHeading(trimmed); hd.level > 0 {
-		hp.Log(":", line, hd)
-		return newTokenBlock(hd.name).setLevel(hd.level)
+	case '#':
+		if name, level := getBlockInfo(line); level > 0 {
+			p.Log(":", line, name, level)
+			return newTokenBlock(name).setLevel(level) //FIXME: change to take name and level
+		}
+	//keep tilde as another possible marker
+	case '.':
+		colon := strings.Index(line, ":")
+		// scenario 5, regular text starting with dot ( no colon
+		if colon == -1 {
+			return newTextLine(line)
+		}
+		// treat as attribute
+		parts := strings.SplitN(line[1:], ":", 2) //split on the first colon skipping the first char
+		// scenario 6, regular text starting with a dot, 1+ spaces and :
+		if strings.TrimSpace(parts[0]) == "" {
+			return newTextLine(line)
+		}
+		//scenario 7: an array since colon is not followed by a value on the same line
+		if strings.TrimSpace(parts[1]) == "" {
+			return newList(parts[0])
+		}
+		//scenario 8: attribute; key:value
+		return newKVPair(parts[0], parts[1])
+	default:
+		return newTextLine(line)
 	}
-	//scenario 6: invalid key:value pair
-	parts := strings.SplitN(line, ":", 2) //split on the first colon
-	if len(parts) != 2 {
-		return newSyntaxError("likely missing ':'")
-	}
-	//scenario 7: an array of non-block types
-	key := trimLower(parts[0])
-	value := parts[1]
-	if isArray(key) && strings.TrimSpace(value) == "" {
-		return newList(key)
-	}
-	//scenario 8: valid key:value pair
-	return newKVPair(key, value)
+	return newTextLine(line)
 }
 
 // readNextLine advances the scanner to the next line and return false
 // if EOF encountered or error occurred. Parser.Err() reports the specific error
 // otherwise it return true
-//first time called there is always something to read
-func (hp *Parser) readNextLine() bool {
-	if hp.errorState != nil { //we have reached eof or encountered an error in previous call
-		hp.currentLine = ""
-		hp.nextLine = ""
+// first time called there is always something to read
+func (p *Parser) readNextLine() bool {
+	if p.errorState != nil { //we have reached eof or encountered an error in previous call
+		p.currentLine = ""
+		p.nextLine = ""
 		return false
 	}
-	if hp.scanner.Scan() {
-		hp.currentLine = hp.nextLine
-		hp.nextLine = hp.scanner.Text()
-		hp.lineNum++
+	if p.scanner.Scan() {
+		p.currentLine = p.nextLine
+		p.nextLine = p.scanner.Text()
+		p.lineNum++
 		return true
 	}
 	//there was an error, set parser.errorState
-	if hp.scanner.Err() == nil { //eof reached
-		hp.errorState = &errEOF{}
+	if p.scanner.Err() == nil { //eof reached
+		p.errorState = &errEOF{}
 	} else { //read error
-		hp.errorState = hp.scanner.Err()
+		p.errorState = p.scanner.Err()
 	}
-	hp.currentLine = hp.nextLine
-	hp.lineNum++
+	p.currentLine = p.nextLine
+	p.lineNum++
 	return true //still ok for this iteration
 }
-
-// //move all these into a class in core that can be enclosed in any class
-// func (hp *Parser) log(a ...interface{}) {
-// 	if hp.Debug >= DebugAll {
-// 		//		fmt.Printf(strings.Repeat("  ", dec.depth))
-// 		fmt.Println(a...)
-// 	}
-// }
-
-// func (hp *Parser) warn(a ...interface{}) {
-// 	if hp.Debug >= DebugWarning {
-// 		fmt.Printf("warning: ")
-// 		fmt.Println(a...)
-// 	}
-// }

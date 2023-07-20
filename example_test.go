@@ -7,7 +7,7 @@ import (
 )
 
 //TODO: test struct tags "mdson"
-func ExampleParse() {
+func ExampleOldPa() {
 	SetDebug(DebugSilent)
 	root, err := Parse(strings.NewReader(full))
 	if err != nil {
