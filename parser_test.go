@@ -115,7 +115,7 @@ func TestParse(t *testing.T) {
 		return
 	}
 	t.Logf("%+v", n)
-	Equal(t, n.Kind(), "Block")
+	Equal(t, n.Kind(), LtBlock)
 }
 
 func TestPrinter(t *testing.T) {

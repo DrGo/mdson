@@ -124,7 +124,7 @@ func (dec *Decoder) decodeBlock(block *ttBlock, rv reflect.Value) error {
 			if err := dec.decodeBlock(n, fld); err != nil {
 				return err
 			}
-		case *ttKVPair:
+		case *ttAttrib:
 			if err := dec.decodeKVPair(n, rv); err != nil {
 				return err
 			}
@@ -155,7 +155,7 @@ func (dec *Decoder) decodeKVPair(n Node, rv reflect.Value) error {
 	}
 	value := ""
 	switch n := n.(type) {
-	case *ttKVPair:
+	case *ttAttrib:
 		value = n.value
 	case *ttLiteralString:
 		value = n.value

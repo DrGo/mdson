@@ -3,6 +3,7 @@ package mdson
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -24,6 +25,7 @@ type Parser struct {
 	scanner     *bufio.Scanner
 }
 
+var errEOF= errors.New("end of file")
 // NewParser returns an initialized MDsonParser
 // FIXME: no need to expose since parser's funcs are not exposed
 func NewParser(r io.Reader, options *ParserOptions) (*Parser, error) {
@@ -41,9 +43,9 @@ func NewParser(r io.Reader, options *ParserOptions) (*Parser, error) {
 		p.nextLine = p.scanner.Text()
 		return p, nil
 	}
-	//Scan() failed from the start; either EOF or an error
+	//we are here so Scan() failed from the start; either EOF or an error
 	if p.scanner.Err() == nil { //eof reached
-		return nil, &errEOF{}
+		return nil, errEOF
 	}
 	return nil, p.scanner.Err()
 }
@@ -98,85 +100,93 @@ func (p *Parser) parse() (root *ttBlock, err error) {
 	// return throw("no valid first-level (#) heading")
 }
 
-// peek parses the nextline without advancing the cursor or changing lineNum
-func (p *Parser) peek() Node {
-	if p.Debug >= DebugAll {
-		p.Log("peek()", p.lineNum, ":", p.nextLine)
-	}
-	return p.parseLine(p.nextLine)
-}
+type nextAct int
 
-func (p *Parser) advance() Node {
-	if !p.readNextLine() {
-		return p.getErrorStatus()
-	}
-	p.Log("advance()", p.lineNum, ":", p.currentLine)
-	n := p.parseLine(p.currentLine)
-	n.setLineNum(p.lineNum)
+const (
+	// parses the next line but does not move the cursor
+	naPeek nextAct = iota
+	// moves the cursor to next line and parse it
+	// naAdvance
+	// only move the cursor to next line; no parsing
+	naNext
+)
+
+// peek parses the nextline without advancing the cursor or changing lineNum
+func (p *Parser) next(act nextAct) (ok bool, n Node) {
 	if p.Debug >= DebugAll {
-		switch t := n.(type) {
-		case *ttKVPair:
+		p.Log("next()", p.lineNum, ":", p.nextLine)
+	}
+	for {
+		switch act {
+		case naPeek:
+			n := p.parseLine(p.nextLine)
+			switch n.Kind() {
+			case LtComment:
+				continue
+			case LtEOF:
+				return false, nil   
+			}	
+			n.setLineNum(p.lineNum)
+			return true, n
+		// case naAdvance:
+		// 	if !p.readNextLine() {
+		// 		return p.getErrorStatus()
+		// 	}
+		// 	p.Log("advance()", p.lineNum, ":", p.currentLine)
+		// 	n := p.parseLine(p.currentLine)
+		// 	n.setLineNum(p.lineNum)
+		// 	if p.Debug >= DebugAll {
+		// 		/*DEBUG*/ p.Log(p.lineNum, n)
+		// 	}
+		// 	return n
+		case naNext:
+			if !p.readNextLine() {
+				return false, nil
+			}
+			return true, nil
 		default:
-			/*DEBUG*/ p.Log(p.lineNum, t)
+			//TODO: panic
+			return false, nil
 		}
 	}
-	return n
 }
 
 // parseBlock return values: false+nil=EOF, false+!nil=error,true+ nil continue
-func (p *Parser) parseBlock(parent *ttBlock) (bool, error) {
+func (p *Parser) parseBlock(parent *ttBlock) (ok bool, err error) {
 	for {
-		n := p.advance()
-		p.Log("after advance()-->line", p.lineNum, n)
+		// peek at next line; cannot fail
+		_, n := p.next(naPeek)
+		// p.Log("after advance()-->line", p.lineNum, n)
 		switch n := n.(type) {
-		case *ttReadError:
-			return false, fmt.Errorf("line %d: %s", p.lineNum, n.err)
-		case *ttSyntaxError:
-			//TODO: convert to EsynatxError
-			return false, fmt.Errorf("line %d: %s", p.lineNum, n.err)
-		case *ttComment, *ttEmpty:
-			continue
-		case *ttEOF:
-			return false, nil
-		case *ttTextLine:
+		// case *ttReadError:
+		// 	return false, fmt.Errorf("line %d: %s", p.lineNum, n.err)
+		// case *ttSyntaxError:
+		// 	//TODO: convert to EsynatxError
+			// return false, fmt.Errorf("line %d: %s", p.lineNum, n.err)
+		case *ttComment:
+			// continue
 		case *ttListItem:
 			return false, fmt.Errorf("line %d: '-' outside a list", p.lineNum)
+		case *ttTextLine, *ttEmpty:
+			parent.addChild(n)
 		case *ttBlock:
-			var ok bool
-			var err error
 			if p.Debug >= DebugAll {
-				fmt.Println("parseblock: parent", parent.Name(), parent.level, "current", n.Name(), n.level)
+				fmt.Println("************parseblock: parent", parent.Name(), parent.level, "current", n.Name(), n.level)
 			}
-		loop:
-			for { //loop to process all children
-				switch {
-				// case n.level-parent.level > 1: ////handle nesting errors
-				// return false, fmt.Errorf("line %d: block level %d is too deeply nested for its level", hp.lineNum)
-				case n.level-parent.level == 1: // this is a child
-					ok, err = p.parseBlock(n) //parse it passing this token as a parent
-					if err != nil {
-						return false, err
-					}
-					parent.addChild(n)
-					if !ok { //FIXME: verify this is correct
-						break loop
-					}
-					if p.pendingLeaf != nil { //do we have unhandled blocken?
-						n, _ = p.pendingLeaf.(*ttBlock)
-						p.pendingLeaf = nil
-						continue
-					}
-				default: //sibling or higher
-					p.pendingLeaf = n //park it in pendingLeaf for ancestors to handle
-					return true, nil
-				}
+			if n.level > parent.level { // this is a child block parse it
+				ok, err = p.parseBlock(n) //parse it passing this token as a parent
+				parent.addChild(n)
+				return ok, err
 			}
+			// if this is a sibling, we let caller handle it
+			return true, nil
 		case *ttList:
-			_, err := p.parseList(parent, n)
-			if err != nil { //error
-				return false, fmt.Errorf("line %d: %s", p.lineNum, err)
+			ok, err = p.parseList(n)
+			parent.addChild(n)
+			if !ok || err != nil { //error
+				return ok, fmt.Errorf("line %d: %s", p.lineNum, err)
 			}
-		case *ttKVPair:
+		case *ttAttrib:
 			// if parent.isArray() {
 			// 	return false, ESyntaxError{hp.lineNum, "key-value pairs not permitted within a list"}
 			// }
@@ -184,26 +194,34 @@ func (p *Parser) parseBlock(parent *ttBlock) (bool, error) {
 			parent.attribs[n.key] = n.value
 		default:
 			panic(fmt.Sprintf("unhandled token type in parseBlock():line %d: %v reflect.type=%s", p.lineNum, n, reflect.TypeOf(n).String()))
+		} //switch
+		//TODO: move error handling to p.next
+		ok,_ = p.next(naNext) //handled next line so move to next
+		//FIXME: return more error info
+		if !ok {
+			return ok, p.errorState
 		}
-	}
+	} //for
 }
 
-func (p *Parser) parseList(block *ttBlock, list *ttList) (bool, error) {
-	loop:for {
-		n := p.peek()		
+func (p *Parser) parseList(list *ttList) (bool, error) {
+loop:
+	for {
+		_, n := p.next(naPeek) //cannot fail		
 		switch n := n.(type) {
-		case *ttComment:
-			_ = p.advance()
-			continue
+		case *ttComment:			
 		case *ttListItem:
 			list.addItem(n)
-			_ = p.advance()
+		//TODO: allow nested lists
 		default:
 			break loop
 		}
+		ok, _ := p.next(naNext)
+		if !ok {
+			return ok, p.errorState
+		}
 	}
-		block.addChild(list)
-		return true, nil
+	return true, nil
 }
 
 // func (hp *Parser) parseFreeTextOrKVP(block *ttBlock, openKVP *ttKVPair) (bool, error) {
@@ -223,26 +241,26 @@ func (p *Parser) parseList(block *ttBlock, list *ttList) (bool, error) {
 //
 // }
 
-func (p *Parser) getErrorStatus() Node {
-	switch p.Err().(type) {
-	case *errEOF: //eof reached
-		return &sEOF
-	default: //read error, return it
-		return newReadError(p.scanner.Err())
-	}
-}
+// func (p *Parser) getErrorStatus() Node {
+// 	switch p.Err().(type) {
+// 	case *errEOF: //eof reached
+// 		return &sEOF
+// 	default: //read error, return it
+// 		return newReadError(p.scanner.Err())
+// 	}
+// }
 
-func (p *Parser) isEOF() bool {
-	if p.Err() == nil {
-		return false
-	}
-	switch p.Err().(type) {
-	case *errEOF: //eof reached
-		return true
-	default: //read error, return it
-		return false
-	}
-}
+// func (p *Parser) isEOF() bool {
+// 	if p.Err() == nil {
+// 		return false
+// 	}
+// 	switch p.Err().(type) {
+// 	case *errEOF: //eof reached
+// 		return true
+// 	default: //read error, return it
+// 		return false
+// 	}
+// }
 
 // parseFreeText parses free text fields
 //
@@ -304,7 +322,7 @@ func (p *Parser) parseLine(line string) Node {
 	//scenario 4: block
 	case '#':
 		if name, level := getBlockInfo(line); level > 0 {
-			p.Log(":", line, name, level)
+			p.Log("******************** Block:", line, name, level)
 			return newTokenBlock(name).setLevel(level) //FIXME: change to take name and level
 		}
 	//keep tilde as another possible marker
@@ -325,7 +343,7 @@ func (p *Parser) parseLine(line string) Node {
 			return newList(parts[0])
 		}
 		//scenario 8: attribute; key:value
-		return newKVPair(parts[0], parts[1])
+		return newAttrib(parts[0], parts[1])
 	default:
 		return newTextLine(line)
 	}
@@ -350,7 +368,7 @@ func (p *Parser) readNextLine() bool {
 	}
 	//there was an error, set parser.errorState
 	if p.scanner.Err() == nil { //eof reached
-		p.errorState = &errEOF{}
+		p.errorState = errEOF
 	} else { //read error
 		p.errorState = p.scanner.Err()
 	}

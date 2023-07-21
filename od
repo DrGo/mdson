@@ -27,7 +27,7 @@ func Test_oldparse(t *testing.T) {
 				return
 			}
 			if err == nil {
-				node := gotTokens.children[0].(*ttKVPair)
+				node := gotTokens.children[0].(*ttAttrib)
 				fmt.Printf("******************\n%s\n", node)
 			}
 			// if gotv := gotTokens[tt.block][tt.wantk]; gotv != tt.wantv {
@@ -82,7 +82,7 @@ func TestOldFile(t *testing.T) {
 				t.Errorf("ParseFile() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if gotRoot.ChildByName("OutputFileName").Kind() != "KV Pair" {
+			if gotRoot.ChildByName("OutputFileName").Kind() != LtAttrib{
 				t.Errorf("ParseFile() = %v, want %v", gotRoot.ChildByName("OutputFileName").Kind(), "fromconfig.docx")
 			}
 		})

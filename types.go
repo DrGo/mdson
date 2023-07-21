@@ -2,84 +2,34 @@ package mdson
 
 import (
 	"fmt"
-	"reflect"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 //An ID describes a field that can be automatically filled with MDSon block name
 type ID string
 
-// An InvalidUnmarshalError describes an invalid argument passed to Unmarshal.
-// (The argument to Unmarshal must be a non-nil pointer.)
-type InvalidUnmarshalError struct {
-	Type reflect.Type
-}
-
-func (e *InvalidUnmarshalError) Error() string {
-	if e.Type == nil {
-		return "mdson: Unmarshal(nil)"
-	}
-
-	if e.Type.Kind() != reflect.Ptr {
-		return "mdson: Unmarshal(non-pointer " + e.Type.String() + ")"
-	}
-	return "mdson: Unmarshal(nil " + e.Type.String() + ")"
-}
-
-// An InvalidMarshalError describes an invalid argument passed to Unmarshal.
-// (The argument to Unmarshal must be a non-nil pointer.)
-type InvalidMarshalError struct {
-	Type reflect.Type
-}
-
-func (e *InvalidMarshalError) Error() string {
-	if e.Type == nil {
-		return "mdson: Marshal(nil)"
-	}
-
-	if e.Type.Kind() != reflect.Ptr {
-		return "mdson: Marshal(non-pointer " + e.Type.String() + ")"
-	}
-	return "mdson: Marshal(nil " + e.Type.String() + ")"
-}
-
-type errEOF struct{}
-
-func (errEOF) Error() string {
-	return "nothing to parse"
-}
-
-//TODO: add to ttSyntaxError?!
-
-type ESyntaxError struct {
-	lineNum int
-	message string
-}
-
-func (ese ESyntaxError) Error() string {
-	return fmt.Sprintf("line %d syntax error: %s)", ese.lineNum, ese.message)
-}
-
-type lineType int
+type LineType int
 
 const (
-	ltReadError lineType = iota
-	ltSyntaxError
-	ltEOF
-	ltEmpty
-	ltComment
-	ltList
-	ltListItem
-	ltBlock
-	ltLiteralString
-	ltKVPair
+	LtReadError LineType = iota
+	LtSyntaxError
+	LtEOF
+	LtEmpty
+	LtComment
+	LtList
+	LtListItem
+	LtBlock
+	LtLiteralString
+	LtAttrib
+	LtTextLine
 )
 
 //Node implement parser's AST node
 type Node interface {
 	String() string
-	Kind() string
+	Kind() LineType 
 	Name() string
 	Children() []Node
 	ChildByName(name string) Node
@@ -92,7 +42,7 @@ type Node interface {
 //baseToken implements the basic token interface root of all of other tokens
 type ttBase struct {
 	lnum int
-	kind string
+	kind LineType
 	key  string
 }
 
@@ -100,13 +50,13 @@ func (bt ttBase) lineNum() int {
 	return bt.lnum
 }
 
-const nodeDescLine = "type=%s, lineNum=%d, key=%s"
+const nodeDescLine = "type=%d, lineNum=%d, key=%s"
 
 func (bt ttBase) String() string {
 	return fmt.Sprintf(nodeDescLine, bt.Kind(), bt.lineNum(), bt.key)
 }
 
-func (bt ttBase) Kind() string {
+func (bt ttBase) Kind() LineType {
 	return bt.kind
 }
 
@@ -144,7 +94,7 @@ type ttReadError struct {
 }
 
 func newReadError(value interface{}) *ttReadError {
-	re := ttReadError{ttBase: ttBase{kind: "ReadError"}}
+	re := ttReadError{ttBase: ttBase{kind: LtReadError}}
 	switch unboxed := value.(type) {
 	case string:
 		re.err = fmt.Errorf("%s", unboxed)
@@ -164,15 +114,12 @@ type ttSyntaxError struct{ ttReadError }
 
 func newSyntaxError(value interface{}) *ttSyntaxError {
 	se := ttSyntaxError{ttReadError: *newReadError(value)}
-	se.kind = "syntax error"
+	se.kind = LtSyntaxError
+	
+	// return fmt.Sprintf("line %d syntax error: %s)", ese.lineNum, ese.message)
 	return &se
 }
 
-type ttEOF struct{ ttBase }
-
-type ttEmpty struct{ ttBase }
-
-type ttComment struct{ ttBase }
 
 type ttBlock struct {
 	ttBase
@@ -182,7 +129,7 @@ type ttBlock struct {
 }
 
 func newTokenBlock(name string) *ttBlock {
-	return &ttBlock{ttBase: ttBase{kind: "Block", key: name},
+	return &ttBlock{ttBase: ttBase{kind: LtBlock, key: name},
 		attribs: make(map[string]string)}
 }
 
@@ -246,35 +193,35 @@ func (blk ttBlock) ValueOf() map[string]string {
 	contents := map[string]string{}
 	for _, c := range blk.children {
 		switch uc := c.(type) {
-		case *ttKVPair:
+		case *ttAttrib:
 			contents[uc.key] = uc.value
-		case *ttLiteralString:
-			contents[uc.key] = uc.value
+		// case *ttTextLine:
+		// 	contents[uc.key] = uc.value
 		}
 	}
 	return contents
 }
 
-type ttKVPair struct {
+type ttAttrib struct {
 	ttBase
 	value string
 }
 
-func newKVPair(key, value string) *ttKVPair {
-	return &ttKVPair{ttBase: ttBase{kind: "KV Pair", key: strings.TrimSpace( key)},
+func newAttrib(key, value string) *ttAttrib {
+	return &ttAttrib{ttBase: ttBase{kind:LtAttrib, key: strings.TrimSpace( key)},
 		value: strings.TrimSpace(value)}
 }
 
-func (kvp ttKVPair) String() string {
+func (kvp ttAttrib) String() string {
 	return kvp.ttBase.String() + ": " + kvp.value
 }
 
-func (kvp *ttKVPair) setKey(value string) *ttKVPair {
+func (kvp *ttAttrib) setKey(value string) *ttAttrib {
 	kvp.key = value
 	return kvp
 }
 
-func (kvp *ttKVPair) setValue(value string) *ttKVPair {
+func (kvp *ttAttrib) setValue(value string) *ttAttrib {
 	kvp.value = value
 	return kvp
 }
@@ -285,7 +232,7 @@ type ttList struct {
 }
 
 func newList(name string) *ttList {
-	list := &ttList{ttBase: ttBase{kind: "List", key: name}}
+	list := &ttList{ttBase: ttBase{kind: LtList, key: name}}
 	return list
 }
 
@@ -299,6 +246,18 @@ func (list ttList) String() string {
 	sb.WriteRune('\n')
 	}
 	return sb.String()
+}
+
+
+
+func GetValidVarName(s string) string {
+	ns := []rune{}
+	for _, c := range s {
+		if unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_' {
+			ns = append(ns, c)
+		}
+	}
+	return string(ns)
 }
 
 func (list ttList) Name() string {
@@ -325,26 +284,23 @@ type ttTextLine struct {
 
 
 func newTextLine(item string) *ttTextLine {
-	return &ttTextLine{ttBase: ttBase{kind: "TextLine", key: item}}
+	return &ttTextLine{ttBase: ttBase{kind:LtTextLine, key: item}}
 }
 
 func newListItem(item string) *ttListItem {
-	return &ttListItem{ttBase: ttBase{kind: "ListItem", key: item}}
+	return &ttListItem{ttBase: ttBase{kind: LtListItem, key: item}}
 }
 
-type ttLiteralString struct {
-	ttKVPair
+type ttEmpty struct {
+	ttBase
 }
 
-func newLiteralString(key, value string) *ttLiteralString {
-	ls := ttLiteralString{ttKVPair: *newKVPair(key, value)}
-	ls.kind = "LiteralString"
-	return &ls
+type ttComment struct {
+	ttBase
 }
-
 //create singlton sentinel values once for simply returning a struct
 var (
-	sEOF     = ttEOF{ttBase: ttBase{kind: "EOF"}}
-	sEmpty   = ttEmpty{ttBase: ttBase{kind: "Empty"}}
-	sComment = ttComment{ttBase: ttBase{kind: "Comment"}}
+	sEOF     = ttBase{kind: LtEOF}
+	sEmpty   = ttEmpty{ttBase{kind: LtEmpty}}
+	sComment = ttComment{ttBase{kind: LtComment}}
 )
