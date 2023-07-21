@@ -86,6 +86,7 @@ type Node interface {
 	ValueOf() map[string]string
 	lineNum() int
 	setLineNum(value int)
+	Value() string
 }
 
 //baseToken implements the basic token interface root of all of other tokens
@@ -131,6 +132,10 @@ func (bt ttBase) ChildByName(name string) Node {
 
 func (bt ttBase) ValueOf() map[string]string {
 	return nil
+}
+
+func (bt ttBase) Value() string {
+	return bt.key
 }
 
 type ttReadError struct {
