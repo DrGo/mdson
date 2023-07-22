@@ -29,7 +29,7 @@ func (m MDTransformer) printNode( n Node){
 			}
 			return 
 		}
-		fmt.Print(n.Kind(), ": ")
+		// fmt.Print(n.Kind(), ": ")
 		print(n.Value())
 	}	
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"unicode"
 )
 
 //An ID describes a field that can be automatically filled with MDSon block name
@@ -40,7 +39,7 @@ type Node interface {
 	Children() []Node
 	ChildByName(name string) Node
 	ValueOf() map[string]string
-	lineNum() int
+	LineNum() int
 	setLineNum(value int)
 	//returns the textual representation of the node as it should appear in a document
 	Value() string
@@ -52,17 +51,21 @@ type Node interface {
 type ttBase struct {
 	lnum int
 	kind LineType
+	level int
 	key  string
 }
 
-func (bt ttBase) lineNum() int {
+func (bt ttBase) LineNum() int {
 	return bt.lnum
 }
 
+func (bt *ttBase) setLineNum(value int) {
+	bt.lnum = value
+}
 const nodeDescLine = "type=%s, lineNum=%d, key=%s, level=%d"
 
 func (bt ttBase) String() string {
-	return fmt.Sprintf(nodeDescLine, bt.Kind(), bt.lineNum(), bt.key, bt.Level())
+	return fmt.Sprintf(nodeDescLine, bt.Kind(), bt.LineNum(), bt.key, bt.Level())
 }
 
 func (bt ttBase) Kind() LineType {
@@ -70,12 +73,9 @@ func (bt ttBase) Kind() LineType {
 }
 
 func (bt ttBase) Key() string {
-	return GetValidVarName(bt.key)
+	return bt.key //GetValidVarName(bt.key) 
 }
 
-func (bt *ttBase) setLineNum(value int) {
-	bt.lnum = value
-}
 
 func (bt ttBase) isArray() bool {
 	return isArray(bt.key)
@@ -96,9 +96,13 @@ func (bt ttBase) ValueOf() map[string]string {
 func (bt ttBase) Value() string {
 	return bt.key
 }
+func (bt *ttBase) setLevel(value int) Node {
+	bt.level = value
+	return bt
+}
 
 func (bt ttBase) Level() int {
-	return -1
+	return bt.level
 }
 
 type ttReadError struct {
@@ -148,37 +152,35 @@ func newTokenBlock(name string, level int) *ttBlock {
 
 func (blk ttBlock) String() string {
 	var sb strings.Builder
-	sb.Grow(10 * 1024)
-	sb.WriteString(blk.ttBase.String() + " " + strconv.Itoa(blk.level) + "\n")
+	sb.Grow(1024)
+	indent := strings.Repeat(" ", blk.Level())
+	sb.WriteString(indent+ blk.ttBase.String() + " " + strconv.Itoa(blk.Level()) + "\n")
+	indent = indent + "- "
 	for k, v := range blk.attribs {
-		sb.WriteString(k)
+		sb.WriteString(indent+ k)
 		sb.WriteString(" = ")
 		sb.WriteString(v)
 		sb.WriteRune('\n')
 	}
 	for _, t := range blk.children {
-		sb.WriteString(" " + t.String() + "\n")
+		sb.WriteString(indent + t.String() + "\n")
 	}
 	return sb.String()
 }
-
-func (blk ttBlock) Key() string {
-	name := GetValidVarName(blk.key)
-	if blk.isArray() {
-		return strings.TrimSuffix(name, "list")
-	}
-	return name
-}
+//
+// func (blk ttBlock) Key() string {
+// 	name := GetValidVarName(blk.key)
+// 	if blk.isArray() {
+// 		return strings.TrimSuffix(name, "list")
+// 	}
+// 	return name
+// }
 
 func (blk *ttBlock) setName(value string) *ttBlock {
 	blk.key = value
 	return blk
 }
 
-func (blk *ttBlock) setLevel(value int) *ttBlock {
-	blk.level = value
-	return blk
-}
 
 func (blk *ttBlock) addChild(t Node) *ttBlock {
 	blk.children = append(blk.children, t)
@@ -215,9 +217,6 @@ func (blk ttBlock) ValueOf() map[string]string {
 	return contents
 }
 
-func (blk ttBlock) Level() int {
-	return blk.level 
-}
 
 type ttAttrib struct {
 	ttBase
@@ -245,41 +244,51 @@ func (kvp *ttAttrib) setValue(value string) *ttAttrib {
 
 type ttList struct {
 	ttBase
-	items []*ttListItem
+	level int
+	children []Node
 }
 
-func newList(name string) *ttList {
-	list := &ttList{ttBase: ttBase{kind: LtList, key: name}}
+func newList(name string, level int) *ttList {
+	list := &ttList{ttBase: ttBase{kind: LtList, key: name}, level: level}
 	return list
 }
 
 func (list ttList) String() string {
 	var sb strings.Builder
-	sb.Grow(10 * 1024)
-	sb.WriteString(list.ttBase.String())
-	sb.WriteRune('\n')
-	for _, li := range list.items {
-		sb.WriteString(li.String())
-	sb.WriteRune('\n')
+	sb.Grow(1024)
+	indent := strings.Repeat(" ", list.Level())
+	sb.WriteString(indent+ list.ttBase.String() + " " + strconv.Itoa(list.Level()) + "\n")
+	indent = indent + "- "
+	// for k, v := range list.attribs {
+	// 	sb.WriteString(indent+ k)
+	// 	sb.WriteString(" = ")
+	// 	sb.WriteString(v)
+	// 	sb.WriteRune('\n')
+	// }
+	for _, t := range list.children {
+		sb.WriteString(indent + t.String() + "\n")
 	}
 	return sb.String()
 }
 
-
-
-func GetValidVarName(s string) string {
-	ns := []rune{}
-	for _, c := range s {
-		if unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_' {
-			ns = append(ns, c)
-		}
-	}
-	return string(ns)
+func (list ttList) Children() []Node {
+	return list.children
 }
 
-func (list ttList) Key() string {
-	return strings.TrimSuffix(GetValidVarName(list.key), "list")
-}
+
+// func GetValidVarName(s string) string {
+// 	ns := []rune{}
+// 	for _, c := range s {
+// 		if unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_' {
+// 			ns = append(ns, c)
+// 		}
+// 	}
+// 	return string(ns)
+// }
+
+// func (list ttList) Key() string {
+// 	return list.key//strings.TrimSuffix(GetValidVarName(list.key), "list")
+// }
 
 func (list *ttList) setName(value string) *ttList {
 	list.key = value
@@ -287,9 +296,10 @@ func (list *ttList) setName(value string) *ttList {
 }
 
 func (list *ttList) addItem(li *ttListItem) *ttList {
-	list.items = append(list.items, li)
+	list.children = append(list.children, li)
 	return list
 }
+
 
 type ttListItem struct {
 	ttBase
