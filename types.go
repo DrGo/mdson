@@ -295,8 +295,8 @@ func (list *ttList) setName(value string) *ttList {
 	return list
 }
 
-func (list *ttList) addItem(li *ttListItem) *ttList {
-	list.children = append(list.children, li)
+func (list *ttList) addChild(n Node) *ttList {
+	list.children = append(list.children, n)
 	return list
 }
 

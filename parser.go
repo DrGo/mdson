@@ -22,7 +22,7 @@ type Parser struct {
 	// nextLine    string
 	node  Node  
 	nextNode 	Node 
-	errorState  error
+	err  error
 	pendingLeaf Node
 	scanner     *bufio.Scanner
 }
@@ -42,15 +42,15 @@ func NewParser(r io.Reader, options *ParserOptions) (*Parser) {
 	buf := make([]byte, bufCap)
 	p.scanner.Buffer(buf, bufCap)
 	//prime the scanner
-	if p.scanner.Scan() {
-		p.nextLine = p.scanner.Text()
-		return p, nil
-	}
-	//we are here so Scan() failed from the start; either EOF or an error
-	if p.scanner.Err() == nil { //eof reached
-		return nil, errEOF
-	}
-	return nil, p.scanner.Err()
+	// if p.scanner.Scan() {
+	// 	p.nextLine = p.scanner.Text()
+	// 	return p, nil
+	// }
+	// //we are here so Scan() failed from the start; either EOF or an error
+	// if p.scanner.Err() == nil { //eof reached
+	// 	return nil, errEOF
+	// }
+	return p  //nil, p.scanner.Err()
 }
 
 // ParseFile parses an MDSon source file into an a
@@ -68,91 +68,107 @@ func ParseFile(fileName string) (root Node, err error) {
 
 // Parse parses an MDSon source into an an AST
 func Parse(r io.Reader) (root Node, err error) {
-	p, err := NewParser(r, DefaultParserOptions().SetDebug(debug))
-	if err != nil {
-		return nil, err
-	}
+	p := NewParser(r, DefaultParserOptions().SetDebug(debug))
+	// if err != nil {
+	// 	return nil, err
+	// }
 	return p.parse()
 }
 
 // Err return parser error state after last advance() call
-func (p *Parser) Err() error {
-	return p.errorState
+func (p *Parser) Err() error {	
+	if p.err == errEOF {
+		return nil   
+	}	
+	return p.err 
 }
 
 // Parse parses an MDson source
 // FIXME: validate block name uniqueness
 func (p *Parser) parse() (root *ttBlock, err error) {
 	root = newTokenBlock("root", 0)
-	for {
-		do, err := p.parseBlock(root)
-		if err != nil && err != errEOF {
-			return throw(err)
-		}
-		if !do {
-			break
-		}
-	}
+	for p.parseBlock(root){}
+	if p.Err()!= nil {
+		return nil, p.Err()
+	}	
 	return root, nil
 }
 
-type nextAct int
 
-const (
-	// parses the next line but does not move the cursor
-	naPeek nextAct = iota
-	// only move the cursor to next line; no parsing
-	naNext
-)
-
-// only returns non-comment lines  
-func (p *Parser) advance() (ok bool, n Node) {
-	for p.readNextLine() {
-			n := p.parseLine(p.nextLine)
+// read the next line and only returns non-comment lines  
+func (p *Parser) getNextNode() Node {
+	//TODO: verify error propagation is working
+	for p.readLine() {
+			n := p.parseLine(p.line)
 			switch n.Kind() {
 			case LtComment:
 				continue
 			case LtEOF:
-				return false, nil
+				return nil
 			}
 			n.setLineNum(p.lineNum)
-			return true, n
+			return n 
 		}
-	return false, nil
+	return nil
 }
 
+func (p *Parser) advance() bool {
+	if p.nextNode != nil { //if we already peeked, use that node 
+		p.node = p.nextNode
+		p.nextNode = nil 
+	}
+	if n:= p.getNextNode(); n != nil {
+				p.node = n
+		return true 
+	}
+	return false 
+}
+
+func (p *Parser) peek() (bool, Node) {
+	if n:= p.getNextNode(); n != nil {
+		p.nextNode = n //save it for future advance
+		return true, n 
+	}
+	return false, nil 
+}
+
+ func (p *Parser) setError(err error) bool {
+ 	p.err= err
+	return false 
+ }
+
 // parseBlock return values: false+nil=EOF, false+!nil=error,true+ nil continue
-func (p *Parser) parseBlock(parent *ttBlock) (ok bool, err error) {
-	for {
-		// peek at next line; cannot fail
-		ok, n := p.peek()
-		p.Log("after p.next(naPeek): ", p.lineNum, n)
-		switch n := n.(type) {
+func (p *Parser) parseBlock(parent *ttBlock) bool {
+	for p.advance() {
+		// p.Log("after p.next(naPeek): ", p.lineNum, n)
+		//we must have a valid non-comment node
+		switch n := p.node.(type) {
 		case *ttComment:
 		// continue
 		case *ttListItem:
-			return false, fmt.Errorf("line %d: '-' outside a list", p.lineNum)
+			parent.addChild(newTextLine(n.Key()))
 		case *ttTextLine, *ttEmpty:
 			parent.addChild(n)
 		case *ttBlock:
 			if p.Debug >= DebugAll {
 				fmt.Printf("**parseblock: parent= %s [%d]; current %s=%s[%d]\n", parent.Key(), parent.level, "block", n.Key(), n.level)
-
 			}
 			if n.level > parent.level { // this is a child block parse it				
-				ok, err = p.parseBlock(n) //parse it passing this token as a parent
+				ok := p.parseBlock(n) //parse it passing this token as a parent
 				parent.addChild(n)
-				return ok, err
+				if !ok {
+					return false 
+				}	
 			}
 			// if this is a sibling, we let caller handle it
-			return true, nil
+			return true
 		case *ttList:
-			ok, err = p.parseList(n)
+			ok:= p.parseList(n)
 			n.level = parent.level + 1
 			parent.addChild(n)
 			fmt.Printf("**parseblock: parent= %s [%d]; current %s=%s[%d]\n", parent.Key(), parent.level, "list", n.Key(), n.level)
-			if !ok || err != nil { //error
-				return ok, fmt.Errorf("line %d: %s", p.lineNum, err)
+			if !ok { 
+				return ok
 			}
 		case *ttAttrib:
 			p.Log("inside parseBlock.ttkvpair:", n.key, n.value)
@@ -160,34 +176,30 @@ func (p *Parser) parseBlock(parent *ttBlock) (ok bool, err error) {
 		default:
 			panic(fmt.Sprintf("unhandled token type in parseBlock():line %d: %v reflect.type=%s", p.lineNum, n, reflect.TypeOf(n).String()))
 		} //switch
-		//TODO: move error handling to p.next
-		// ok, _ = p.next(naNext) //handled next line so move to next
-		//FIXME: return more error info
-		if !ok {
-			return ok, p.errorState
-		}
 	} //for
+	return false // advanced returned false 
 }
 
-func (p *Parser) parseList(list *ttList) (bool, error) {
+func (p *Parser) parseList(list *ttList) bool{
 loop:
 	for {
-		ok, n := p.peek() //cannot fail
+		ok, n := p.peek() 
+		if !ok {
+			return ok
+		}
 		p.Log("inside parseList=>", n)
-		switch n := n.(type) {
-		case *ttComment:
+		switch n.(type) {
+		case *ttComment: //ignore
 		case *ttListItem:
-			list.addItem(n)
+			p.advance()
+			list.addChild(p.node)
+			continue
 		//TODO: allow nested lists
 		default:
 			break loop
 		}
-		// ok, _ := p.next(naNext)
-		if !ok {
-			return ok, p.errorState
-		}
 	}
-	return true, nil
+	return true
 }
 
 // }
@@ -240,7 +252,7 @@ func (p *Parser) parseLine(line string) Node {
 // otherwise it return true
 // first time called there is always something to read
 func (p *Parser) readLine() bool {
-	if p.errorState != nil { //we have reached eof or encountered an error in previous call
+	if p.err != nil { //we have reached eof or encountered an error in previous call
 		return false
 	}
 	if p.scanner.Scan() {
@@ -251,9 +263,9 @@ func (p *Parser) readLine() bool {
 	}
 	//there was an error, set parser.errorState
 	if p.scanner.Err() == nil { //eof reached
-		p.errorState = errEOF
+		p.err= errEOF
 	} else { //read error
-		p.errorState = p.scanner.Err()
+		p.err= p.scanner.Err()
 	}
 	return false 
 }
