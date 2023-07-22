@@ -21,22 +21,31 @@ const (
 	LtList
 	LtListItem
 	LtBlock
-	LtLiteralString
+	// LtLiteralString
 	LtAttrib
 	LtTextLine
 )
+
+func (lt LineType) String() string {
+	//[...] creates an array rather than a slice
+	return [...]string{"Read Error", "Syntax Error","EOF",
+	"Empty", "Comment", "List","List item", "Block", "Attribute", "Text line"}[lt]
+}
 
 //Node implement parser's AST node
 type Node interface {
 	String() string
 	Kind() LineType 
-	Name() string
+	Key() string
 	Children() []Node
 	ChildByName(name string) Node
 	ValueOf() map[string]string
 	lineNum() int
 	setLineNum(value int)
+	//returns the textual representation of the node as it should appear in a document
 	Value() string
+	// returns nesting level for a node 
+	Level() int 
 }
 
 //baseToken implements the basic token interface root of all of other tokens
@@ -50,17 +59,17 @@ func (bt ttBase) lineNum() int {
 	return bt.lnum
 }
 
-const nodeDescLine = "type=%d, lineNum=%d, key=%s"
+const nodeDescLine = "type=%s, lineNum=%d, key=%s, level=%d"
 
 func (bt ttBase) String() string {
-	return fmt.Sprintf(nodeDescLine, bt.Kind(), bt.lineNum(), bt.key)
+	return fmt.Sprintf(nodeDescLine, bt.Kind(), bt.lineNum(), bt.key, bt.Level())
 }
 
 func (bt ttBase) Kind() LineType {
 	return bt.kind
 }
 
-func (bt ttBase) Name() string {
+func (bt ttBase) Key() string {
 	return GetValidVarName(bt.key)
 }
 
@@ -86,6 +95,10 @@ func (bt ttBase) ValueOf() map[string]string {
 
 func (bt ttBase) Value() string {
 	return bt.key
+}
+
+func (bt ttBase) Level() int {
+	return -1
 }
 
 type ttReadError struct {
@@ -128,9 +141,9 @@ type ttBlock struct {
 	attribs map[string]string 
 }
 
-func newTokenBlock(name string) *ttBlock {
-	return &ttBlock{ttBase: ttBase{kind: LtBlock, key: name},
-		attribs: make(map[string]string)}
+func newTokenBlock(name string, level int) *ttBlock {
+	return &ttBlock{ttBase: ttBase{kind: LtBlock, key: name, },
+		attribs: make(map[string]string), level: level, }
 }
 
 func (blk ttBlock) String() string {
@@ -149,7 +162,7 @@ func (blk ttBlock) String() string {
 	return sb.String()
 }
 
-func (blk ttBlock) Name() string {
+func (blk ttBlock) Key() string {
 	name := GetValidVarName(blk.key)
 	if blk.isArray() {
 		return strings.TrimSuffix(name, "list")
@@ -174,7 +187,7 @@ func (blk *ttBlock) addChild(t Node) *ttBlock {
 
 func (blk ttBlock) getChildByName(name string) Node {
 	for _, c := range blk.children {
-		if c.Name() == name {
+		if c.Key() == name {
 			return c
 		}
 	}
@@ -200,6 +213,10 @@ func (blk ttBlock) ValueOf() map[string]string {
 		}
 	}
 	return contents
+}
+
+func (blk ttBlock) Level() int {
+	return blk.level 
 }
 
 type ttAttrib struct {
@@ -260,7 +277,7 @@ func GetValidVarName(s string) string {
 	return string(ns)
 }
 
-func (list ttList) Name() string {
+func (list ttList) Key() string {
 	return strings.TrimSuffix(GetValidVarName(list.key), "list")
 }
 

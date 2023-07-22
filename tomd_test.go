@@ -15,9 +15,9 @@ func TestTransformMD(t *testing.T) {
 	if err != nil {
 		return
 	}
-	w := bufio.NewWriter(os.Stdout)
-	md := MDTransformer{}
-	md.Transform(w, n)
+	w:= 	bufio.NewWriter(os.Stdout)
+	md := MDTransformer{w:w}
+	md.Transform( n)
 	fmt.Println("********************************output************")
 	w.Flush()
 }
