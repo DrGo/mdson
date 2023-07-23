@@ -17,12 +17,13 @@ import (
 type Parser struct {
 	ParserOptions
 	ui.UI
-	lineNum     int
-	line string
-	// nextLine    string
-	node  Node  
-	nextNode 	Node 
-	err  error
+	lineNum int
+	line    string
+	// holds the entire document
+	root        *ttBlock
+	node        Node
+	nextNode    Node
+	err         error
 	pendingLeaf Node
 	scanner     *bufio.Scanner
 }
@@ -31,26 +32,16 @@ var errEOF = errors.New("end of file")
 
 // NewParser returns an initialized MDsonParser
 // FIXME: no need to expose since parser's funcs are not exposed
-func NewParser(r io.Reader, options *ParserOptions) (*Parser) {
+func NewParser(r io.Reader, options *ParserOptions) *Parser {
 	p := &Parser{
 		ParserOptions: *options,
 		scanner:       bufio.NewScanner(r),
 		UI:            ui.NewUI(options.Debug),
+		root:          newTokenBlock("root", 0),
 	}
-	// fmt.Println("hp.Debug:", hp.Debug)
-	bufCap := 1024 * 1024 //1 megabyte buffer
-	buf := make([]byte, bufCap)
-	p.scanner.Buffer(buf, bufCap)
-	//prime the scanner
-	// if p.scanner.Scan() {
-	// 	p.nextLine = p.scanner.Text()
-	// 	return p, nil
-	// }
-	// //we are here so Scan() failed from the start; either EOF or an error
-	// if p.scanner.Err() == nil { //eof reached
-	// 	return nil, errEOF
-	// }
-	return p  //nil, p.scanner.Err()
+	buf := make([]byte, options.BufferCap)
+	p.scanner.Buffer(buf, options.BufferCap)
+	return p
 }
 
 // ParseFile parses an MDSon source file into an a
@@ -69,78 +60,93 @@ func ParseFile(fileName string) (root Node, err error) {
 // Parse parses an MDSon source into an an AST
 func Parse(r io.Reader) (root Node, err error) {
 	p := NewParser(r, DefaultParserOptions().SetDebug(debug))
-	// if err != nil {
-	// 	return nil, err
-	// }
-	return p.parse()
+	err= p.parse()
+	if err != nil {
+		return nil, err
+	}
+	return p.root, nil
 }
 
 // Err return parser error state after last advance() call
-func (p *Parser) Err() error {	
+func (p *Parser) Err() error {
 	if p.err == errEOF {
-		return nil   
-	}	
-	return p.err 
+		return nil
+	}
+	return p.err
 }
 
 // Parse parses an MDson source
 // FIXME: validate block name uniqueness
-func (p *Parser) parse() (root *ttBlock, err error) {
-	root = newTokenBlock("root", 0)
-	for p.parseBlock(root){}
-	if p.Err()!= nil {
-		return nil, p.Err()
-	}	
-	return root, nil
+func (p *Parser) parse() error {
+	for p.parseBlock(p.root) {
+	}
+	if p.Err() != nil {
+		return p.Err()
+	}
+	return nil
 }
 
-
-// read the next line and only returns non-comment lines  
+// read the next line and only returns non-comment lines
 func (p *Parser) getNextNode() Node {
 	//TODO: verify error propagation is working
 	for p.readLine() {
-			n := p.parseLine(p.line)
-			switch n.Kind() {
-			case LtComment:
-				continue
-			case LtEOF:
-				return nil
-			}
-			n.setLineNum(p.lineNum)
-			return n 
+		n := p.parseLine(p.line)
+		switch n.Kind() {
+		case LtComment:
+			continue
+		case LtEOF:
+			return nil
 		}
+		n.setLineNum(p.lineNum)
+		return n
+	}
 	return nil
 }
 
 func (p *Parser) advance() bool {
-	if p.nextNode != nil { //if we already peeked, use that node 
+	p.Log("in advance(): node=", p.node, "nextNode=", p.nextNode) 
+	if p.nextNode != nil { //if we already peeked, use that node
 		p.node = p.nextNode
-		p.nextNode = nil 
-	}
-	if n:= p.getNextNode(); n != nil {
-				p.node = n
+		p.nextNode = nil
 		return true 
 	}
-	return false 
-}
-
-func (p *Parser) peek() (bool, Node) {
-	if n:= p.getNextNode(); n != nil {
-		p.nextNode = n //save it for future advance
-		return true, n 
+	if n := p.getNextNode(); n != nil {
+		p.node = n
+		return true
 	}
-	return false, nil 
+	return false
 }
 
- func (p *Parser) setError(err error) bool {
- 	p.err= err
-	return false 
- }
+// func (p *Parser) peek() (bool, Node) {
+// 	if n := p.getNextNode(); n != nil {
+// 		p.nextNode = n //save it for future advance
+// 		return true, n
+// 	}
+// 	return false, nil
+// }
 
+// retreat moves the parser to the previous line by
+// putting current node in nextNode to be be picked
+// next call to advance()
+func (p *Parser) retreat() bool {
+	p.Log("putting back node", p.node)
+	p.nextNode = p.node
+	return true
+}
+
+func (p *Parser) setError(err error) bool {
+	p.err = err
+	return false
+}
+
+var ln =0 
 // parseBlock return values: false+nil=EOF, false+!nil=error,true+ nil continue
-func (p *Parser) parseBlock(parent *ttBlock) bool {
+func (p *Parser) parseBlock(parent *ttBlock) (bool, {
 	for p.advance() {
-		// p.Log("after p.next(naPeek): ", p.lineNum, n)
+		if ln == p.lineNum {
+			break }
+		ln =p.lineNum
+		p.Log("after parseblock.advance()=>", p.lineNum, p.node)
 		//we must have a valid non-comment node
 		switch n := p.node.(type) {
 		case *ttComment:
@@ -148,69 +154,64 @@ func (p *Parser) parseBlock(parent *ttBlock) bool {
 		case *ttListItem:
 			parent.addChild(newTextLine(n.Key()))
 		case *ttTextLine, *ttEmpty:
+			p.Log("inside *ttTextLinei", n.Value())
 			parent.addChild(n)
 		case *ttBlock:
-			if p.Debug >= DebugAll {
-				fmt.Printf("**parseblock: parent= %s [%d]; current %s=%s[%d]\n", parent.Key(), parent.level, "block", n.Key(), n.level)
-			}
-			if n.level > parent.level { // this is a child block parse it				
-				ok := p.parseBlock(n) //parse it passing this token as a parent
-				parent.addChild(n)
-				if !ok {
-					return false 
-				}	
-			}
-			// if this is a sibling, we let caller handle it
-			return true
+			// p.retreat()
+			return true 
+			// if p.Debug >= DebugAll {
+			// 	fmt.Printf(`**parseblock: parent= "%s" [%d]; current %s="%s"[%d]
+			// `, parent.Key(), parent.level, "block", n.Key(), n.level)
+			// }
+			// ok := p.parseBlock(n) //parse it passing this token as a parent
+			// if !ok {
+			// 	break
+			// }
 		case *ttList:
-			ok:= p.parseList(n)
+			ok := p.parseList(n)
+			p.Log("in *ttlist case after returning from parseList")
 			n.level = parent.level + 1
 			parent.addChild(n)
-			fmt.Printf("**parseblock: parent= %s [%d]; current %s=%s[%d]\n", parent.Key(), parent.level, "list", n.Key(), n.level)
-			if !ok { 
-				return ok
+			if !ok {
+				break
 			}
+			p.retreat()
 		case *ttAttrib:
-			p.Log("inside parseBlock.ttkvpair:", n.key, n.value)
+			// p.Log("inside parseBlock.ttkvpair:", n.key, n.value)
 			parent.attribs[n.key] = n.value
 		default:
 			panic(fmt.Sprintf("unhandled token type in parseBlock():line %d: %v reflect.type=%s", p.lineNum, n, reflect.TypeOf(n).String()))
 		} //switch
 	} //for
-	return false // advanced returned false 
+	return false // advanced returned false
 }
 
-func (p *Parser) parseList(list *ttList) bool{
-loop:
-	for {
-		ok, n := p.peek() 
-		if !ok {
-			return ok
-		}
-		p.Log("inside parseList=>", n)
-		switch n.(type) {
+func (p *Parser) parseList(list *ttList) bool {
+	//we just parsed a list header
+	for p.advance(){
+		p.Log("after parseList.advance()=>", p.lineNum, p.node)
+		switch p.node.(type) {
 		case *ttComment: //ignore
 		case *ttListItem:
-			p.advance()
 			list.addChild(p.node)
-			continue
 		//TODO: allow nested lists
 		default:
-			break loop
+			// p.retreat()
+			return true 
 		}
 	}
-	return true
+	return false //advance() failed
 }
 
 // }
 func (p *Parser) parseLine(line string) Node {
 	//scenario 1 : empty line
 	if line == "" {
-		return (&sEmpty)
+		return &sEmpty
 	}
 	//scenario 2: commented line
 	if strings.HasPrefix(line, "//") {
-		return (&sComment)
+		return &sComment
 	}
 	//get the first unicode coding point guaranteed to have >=1 char b/c of the empty check above
 	switch ch := []rune(line)[0]; ch {
@@ -221,9 +222,12 @@ func (p *Parser) parseLine(line string) Node {
 	//scenario 4: block
 	case '#':
 		name, level := getBlockInfo(line)
-		p.Log("******************** Block:", line, name, level)
+		// p.Log("******************** Block:", line, name, level)
 		return newTokenBlock(name, level) //FIXME: change to take name and level
 		//keep tilde as another possible marker
+	case '~':
+		//scenario 7: a list 
+		return newList(line[1:], 0)
 	case '.':
 		colon := strings.Index(line, ":")
 		// scenario 5, regular text starting with dot ( no colon
@@ -235,10 +239,6 @@ func (p *Parser) parseLine(line string) Node {
 		// scenario 6, regular text starting with a dot, 1+ spaces and :
 		if strings.TrimSpace(parts[0]) == "" {
 			return newTextLine(line)
-		}
-		//scenario 7: an array since colon is not followed by a value on the same line
-		if strings.TrimSpace(parts[1]) == "" {
-			return newList(parts[0], 0)
 		}
 		//scenario 8: attribute; key:value
 		return newAttrib(parts[0], parts[1])
@@ -263,9 +263,9 @@ func (p *Parser) readLine() bool {
 	}
 	//there was an error, set parser.errorState
 	if p.scanner.Err() == nil { //eof reached
-		p.err= errEOF
+		p.err = errEOF
 	} else { //read error
-		p.err= p.scanner.Err()
+		p.err = p.scanner.Err()
 	}
-	return false 
+	return false
 }

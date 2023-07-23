@@ -23,12 +23,14 @@ const (
 //ParserOptions holds parsing options
 type ParserOptions struct {
 	Debug int
+	BufferCap int 
 }
 
 //DefaultParserOptions returns reasonable default for parsing
 func DefaultParserOptions() *ParserOptions {
 	return &ParserOptions{
 		Debug: DebugUpdates,
+		BufferCap: 1024 * 100,
 	}
 }
 

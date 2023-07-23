@@ -62,10 +62,10 @@ func (bt ttBase) LineNum() int {
 func (bt *ttBase) setLineNum(value int) {
 	bt.lnum = value
 }
-const nodeDescLine = "type=%s, lineNum=%d, key=%s, level=%d"
+const nodeDescLine = "type=%s, lineNum=%d,  level=%d,key='%s',value='%s'"
 
 func (bt ttBase) String() string {
-	return fmt.Sprintf(nodeDescLine, bt.Kind(), bt.LineNum(), bt.key, bt.Level())
+	return fmt.Sprintf(nodeDescLine, bt.Kind(), bt.LineNum(),  bt.Level(), bt.Key(), bt.Value())
 }
 
 func (bt ttBase) Kind() LineType {
@@ -140,14 +140,13 @@ func newSyntaxError(value interface{}) *ttSyntaxError {
 
 type ttBlock struct {
 	ttBase
-	level    int
 	children []Node
 	attribs map[string]string 
 }
 
 func newTokenBlock(name string, level int) *ttBlock {
-	return &ttBlock{ttBase: ttBase{kind: LtBlock, key: name, },
-		attribs: make(map[string]string), level: level, }
+	return &ttBlock{ttBase: ttBase{kind: LtBlock, key: name,  level: level },
+		attribs: make(map[string]string)}
 }
 
 func (blk ttBlock) String() string {
@@ -244,12 +243,11 @@ func (kvp *ttAttrib) setValue(value string) *ttAttrib {
 
 type ttList struct {
 	ttBase
-	level int
 	children []Node
 }
 
 func newList(name string, level int) *ttList {
-	list := &ttList{ttBase: ttBase{kind: LtList, key: name}, level: level}
+	list := &ttList{ttBase: ttBase{kind: LtList, key: name, level: level}}
 	return list
 }
 
