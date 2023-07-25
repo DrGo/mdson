@@ -13,16 +13,16 @@
 .prop with multiline values: are not allowed
  .this is not a prop because the first char is space
 
-// you could refer to any of the above props anywhere in the doc like this |.date|
-.today: Today is |.date|		
+// you could refer to any of the above props anywhere in the doc like this {.date}
+.today: Today is {date}
 
 // section names are regular markdown headers starting with one or more #
 ## introduction
 // props that belong to this section
 .author: Someone
-// they can be referred to as |introduction.author|
+// they can be referred to as {introduction.author}
 // refer to the computed .today value above
-|.today|
+date {today}
 
 // A list starts with ~ and continues until the next non-list item element 
 // this is a list named "Causes of heart failure". The name is all the text
@@ -32,8 +32,8 @@
 - Hypertension
 - Atrial fibrillation
 - Myocardial infarction
-// This list can be referred to as |.Causes of heart failure|
-// its first element can be referred to as |.Causes of heart failure[0]|
+// This list can be referred to as {.Causes of heart failure}
+// its first element can be referred to as {.Causes of heart failure[0]}
 
 ### Nested within Introduction
 // backticks used to guard preformatted text like code blocks 
@@ -43,7 +43,7 @@
 - item 2
 - item 3
 - 
-//Linking to another section or list using markdown link syntax []()
+//Linking to another section or list using markdown link []()
 Line 1 in subsection of introduction
 Line 2 in subsection of introduction
 Line 3 in subsection of introduction

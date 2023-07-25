@@ -20,7 +20,7 @@ type Parser struct {
 	lineNum int
 	line    string
 	// holds the entire document
-	root        *ttBlock
+	root        BlockNode 
 	node        Node
 	nextNode    Node
 	err         error
@@ -37,7 +37,7 @@ func NewParser(r io.Reader, options *ParserOptions) *Parser {
 		ParserOptions: *options,
 		scanner:       bufio.NewScanner(r),
 		UI:            ui.NewUI(options.Debug),
-		root:          newTokenBlock("root", 0),
+		root:          newBlock("root", 0),
 	}
 	buf := make([]byte, options.BufferCap)
 	p.scanner.Buffer(buf, options.BufferCap)
@@ -45,7 +45,7 @@ func NewParser(r io.Reader, options *ParserOptions) *Parser {
 }
 
 // ParseFile parses an MDSon source file into an a
-func ParseFile(fileName string) (root Node, err error) {
+func ParseFile(fileName string) (root BlockNode, err error) {
 	file, err := os.Open(fileName)
 	if err != nil {
 		return throw(err)
@@ -58,7 +58,7 @@ func ParseFile(fileName string) (root Node, err error) {
 }
 
 // Parse parses an MDSon source into an an AST
-func Parse(r io.Reader) (root Node, err error) {
+func Parse(r io.Reader) (root BlockNode, err error) {
 	p := NewParser(r, DefaultParserOptions().SetDebug(debug))
 	err= p.parse()
 	if err != nil {
@@ -79,6 +79,7 @@ func (p *Parser) Err() error {
 // FIXME: validate block name uniqueness
 func (p *Parser) parse() error {
 	for p.parseBlock(p.root) {
+		p.root.AddChild(p.node)
 	}
 	if p.Err() != nil {
 		return p.Err()
@@ -97,7 +98,7 @@ func (p *Parser) getNextNode() Node {
 		case LtEOF:
 			return nil
 		}
-		n.setLineNum(p.lineNum)
+		n.SetLineNum(p.lineNum)
 		return n
 	}
 	return nil
@@ -141,7 +142,7 @@ func (p *Parser) setError(err error) bool {
 
 var ln =0 
 // parseBlock return values: false+nil=EOF, false+!nil=error,true+ nil continue
-func (p *Parser) parseBlock(parent *ttBlock) (bool, {
+func (p *Parser) parseBlock(parent BlockNode) bool {
 	for p.advance() {
 		if ln == p.lineNum {
 			break }
@@ -152,10 +153,10 @@ func (p *Parser) parseBlock(parent *ttBlock) (bool, {
 		case *ttComment:
 		// continue
 		case *ttListItem:
-			parent.addChild(newTextLine(n.Key()))
+			parent.AddChild(newTextLine(n.Key()))
 		case *ttTextLine, *ttEmpty:
 			p.Log("inside *ttTextLinei", n.Value())
-			parent.addChild(n)
+			parent.AddChild(n)
 		case *ttBlock:
 			// p.retreat()
 			return true 
@@ -170,15 +171,15 @@ func (p *Parser) parseBlock(parent *ttBlock) (bool, {
 		case *ttList:
 			ok := p.parseList(n)
 			p.Log("in *ttlist case after returning from parseList")
-			n.level = parent.level + 1
-			parent.addChild(n)
+			n.setLevel(parent.Level() + 1)
+			parent.AddChild(n)
 			if !ok {
 				break
 			}
 			p.retreat()
 		case *ttAttrib:
 			// p.Log("inside parseBlock.ttkvpair:", n.key, n.value)
-			parent.attribs[n.key] = n.value
+			parent.Attribs()[n.key] = n.value
 		default:
 			panic(fmt.Sprintf("unhandled token type in parseBlock():line %d: %v reflect.type=%s", p.lineNum, n, reflect.TypeOf(n).String()))
 		} //switch
@@ -193,7 +194,7 @@ func (p *Parser) parseList(list *ttList) bool {
 		switch p.node.(type) {
 		case *ttComment: //ignore
 		case *ttListItem:
-			list.addChild(p.node)
+			list.AddChild(p.node)
 		//TODO: allow nested lists
 		default:
 			// p.retreat()
@@ -223,7 +224,7 @@ func (p *Parser) parseLine(line string) Node {
 	case '#':
 		name, level := getBlockInfo(line)
 		// p.Log("******************** Block:", line, name, level)
-		return newTokenBlock(name, level) //FIXME: change to take name and level
+		return newBlock(name, level) //FIXME: change to take name and level
 		//keep tilde as another possible marker
 	case '~':
 		//scenario 7: a list 
