@@ -52,7 +52,6 @@ type BlockNode interface {
 	Children() []Node
 	NthChild(idx int) Node
 	AddChild(n Node) Node
-	Attribs() map[string]string
 	// returns nesting level for a node
 	Level() int
 }
@@ -66,7 +65,7 @@ type ttBase struct {
 }
 
 func newBase(kind LineType, key string) *ttBase {
-	return &ttBase{kind: LtBlock, key: key}
+	return &ttBase{kind: kind, key: key}
 }
 
 func (bt ttBase) LineNum() int {
@@ -152,12 +151,11 @@ type ttBlock struct {
 	*ttBase
 	level    int
 	children []Node
-	attribs  map[string]string
 }
 
 func newBlock(key string, level int) *ttBlock {
 	return &ttBlock{ttBase: newBase(LtBlock, key),
-		level: level, attribs: make(map[string]string)}
+		level: level,}
 }
 
 func (blk ttBlock) String() string {
@@ -166,12 +164,6 @@ func (blk ttBlock) String() string {
 	indent := strings.Repeat(" ", blk.Level())
 	sb.WriteString(indent + blk.ttBase.String() + " " + strconv.Itoa(blk.Level()) + "\n")
 	indent = indent + "- "
-	for k, v := range blk.attribs {
-		sb.WriteString(indent + k)
-		sb.WriteString(" = ")
-		sb.WriteString(v)
-		sb.WriteRune('\n')
-	}
 	for _, t := range blk.children {
 		sb.WriteString(indent + t.String() + "\n")
 	}
@@ -226,10 +218,6 @@ func (blk ttBlock) NthChild(idx int) Node {
 // func (blk ttBlock) ChildByName(name string) Node {
 // 	return blk.getChildByName(name)
 // }
-
-func (blk ttBlock) Attribs() map[string]string {
-	return blk.attribs
-}
 
 type ttAttrib struct {
 	*ttBase
@@ -345,3 +333,38 @@ var (
 	sEmpty   = ttEmpty{ttBase{kind: LtEmpty}}
 	sComment = ttComment{ttBase{kind: LtComment}}
 )
+
+//TODO add Document interface
+
+type Document struct {
+	ctx *Context
+	root        BlockNode 
+	attribs  map[string]string
+}
+
+func newDocument(ctx *Context) *Document{
+	return &Document{
+		ctx :ctx, 
+		root: newBlock("root",0),
+		attribs: make(map[string]string),
+	}
+}	
+
+func (doc Document) Attribs() map[string]string {
+	return doc.attribs
+}
+
+
+func (doc Document) String() string {
+	var sb strings.Builder
+	sb.Grow(1024)
+	indent := " "
+	sb.WriteString(doc.root.String())
+	for k, v := range doc.attribs {
+		sb.WriteString(indent + k)
+		sb.WriteString(" = ")
+		sb.WriteString(v)
+		sb.WriteRune('\n')
+	}
+	return sb.String()
+}

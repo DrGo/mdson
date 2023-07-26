@@ -24,7 +24,7 @@ func getBlockInfo(line string) (string, int) {
 	return  trimLower(name),  i
 }
 
-func throw(value interface{}) (*ttBlock, error) {
+func throw(value interface{}) (*Document, error) {
 	switch unboxed := value.(type) {
 	case string:
 		return nil, fmt.Errorf("%s", unboxed)

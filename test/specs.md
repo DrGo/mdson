@@ -9,12 +9,13 @@
 .parent: root 
 .prop can have long name: some value
 .weight: 1
-.date: 12july2023
+.date: 12July2023
 .prop with multiline values: are not allowed
  .this is not a prop because the first char is space
 
 // you could refer to any of the above props anywhere in the doc like this {.date}
 .today: Today is {date}
+date {today}
 
 // section names are regular markdown headers starting with one or more #
 ## introduction

@@ -1,6 +1,7 @@
 .parent: root
 # Section 1 
-.parent: root 
+.parent: root
+.name : section 1
 ## Section 1.1 
 .parent: section 1  
 ## Section 1.2 

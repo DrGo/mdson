@@ -51,8 +51,8 @@ func (m MDTransformer) printNode(n Node) {
 }
 
 // TODO: check for writing errors
-func (m MDTransformer) Transform(n Node) error {
-	m.printNode(n)
+func (m MDTransformer) Transform(doc *Document) error {
+	m.printNode(doc.root)
 	// m.w.Flush()
 	return nil
 }
