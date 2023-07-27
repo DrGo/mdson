@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-
-	"github.com/drgo/core/ui"
 )
 
 const EOL = "\r\n"
@@ -16,13 +14,13 @@ type Transformer interface {
 
 type MDTransformer struct {
 	w io.Writer
-	ui.UI
+	ctx *Context
 }
 
-func newMDTransformer(w io.Writer, options *ParserOptions) MDTransformer {
+func newMDTransformer(w io.Writer, ctx *Context) MDTransformer {
 	return MDTransformer{
+		ctx :ctx,
 		w:  w,
-		UI: ui.NewUI(options.Debug),
 	}
 }
 func (m MDTransformer) print(s string) {
@@ -31,7 +29,7 @@ func (m MDTransformer) print(s string) {
 }
 
 func (m MDTransformer) printNode(n Node) {
-	m.Log("printNode():", n)
+	m.ctx.Log("printNode():", n)
 	switch n := n.(type) {
 	case *ttBlock:
 		if n.Level() > 0 { // donot print root

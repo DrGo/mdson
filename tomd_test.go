@@ -10,7 +10,7 @@ import (
 func test_md_transform(t *testing.T, doc *Document) {
 	t.Helper()
 	w:= 	bufio.NewWriter(os.Stdout)
-	md :=newMDTransformer(w, DefaultParserOptions().SetDebug(*TestDebug)) 
+	md :=newMDTransformer(w, ctx) 
 	md.Transform( doc)
 	fmt.Println("********************************output************")
 	w.Flush()

@@ -14,17 +14,19 @@ import (
 // resolve using attrib map
 
 func (doc *Document) eval()  error{
-	assert(doc!=nil, "doc is nil in eval()")
+	// assert(doc!=nil, "doc is nil in eval()")
 	if err:= doc.evalAllAttribs(doc.root); err!=nil {
 		return err 
 	}
- 	n, err:= doc.evalBlock(doc.root)
+	doc.ctx.Log("eval()==> #sections", len(doc.root.Children()))
+	n, err:= doc.evalBlock(doc.root)
 	if err!=nil {
 		return err 
 	}
-	_ = n 
+	doc.ctx.Log("eval()==> #sections of evaluted root", len(n.Children()))
+	 doc.root = n 
+	doc.ctx.Log("eval()==> #sections", len(doc.root.Children()))
 	return nil
-
 }
 
 var reCurelyBraces = regexp.MustCompile(`{([^{}]*)}`)
@@ -58,22 +60,25 @@ func (doc *Document) evalAttribRefs(s string) string{
 func (doc *Document) evalLeaf(n Node)(Node, error) {
 	//TODO: guard against evaluating empty, error what else?
 	s:= doc.evalAttribRefs(n.Value())
+	doc.ctx.Log("**************** evalLeaf(): " + s)
 	n.SetValue(s)	
 	return n, nil
 }
 
 func (doc *Document) evalBlock(n BlockNode)(BlockNode, error) {
-	doc.ctx.Log("evalBlock():", n)
+	doc.ctx.Log("evalBlock() start:", n.Key())
 	count:= len(n.Children())
 	for i := 0; i < count; i++ {
 		switch c:= n.NthChild(i).(type){
 		case BlockNode:
-			if _,err :=doc.evalBlock(c); err!=nil {
+			_,err :=doc.evalBlock(c)  
+			if err!=nil {
 				return nil, err
 			}
+			// n.UpdateChild(i, en)
 		//TODO: guard against evaluating errors etc
 		default:
-			if _, err :=doc.evalLeaf(n); err!=nil {
+			if _, err :=doc.evalLeaf(c); err!=nil {
 				return nil, err 
 			}	
 		}		

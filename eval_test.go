@@ -1,12 +1,10 @@
 package mdson
 
 import (
-	"flag"
 	"testing"
 )
 
 
-var TestDebug=flag.Int("debug", 0, "")
 
 
 func TestEval(t *testing.T) {
@@ -17,5 +15,6 @@ func TestEval(t *testing.T) {
 	}
 	Equal(t, doc.attribs["date"], "12July2023")
 	Equal(t, doc.attribs["today"], "Today is 12July2023")
-	// t.Logf("\n\n%s\n", newPrinter().print(doc.root)) 
+		
+	// t.Logf("\n\n%s\n", doc.root.Children()[0]) 
 }

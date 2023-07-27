@@ -1,41 +1,40 @@
 package mdson
 
-import "runtime"
+import (
+	"fmt"
+	"runtime"
 
-var debug int
-
-// SetDebug sets the default debug level for all package routines
-func SetDebug(level int) {
-	debug = level
-}
-
-const (
-	//DebugSilent print errors only
-	DebugSilent int = iota
-	//DebugWarning print warnings and errors
-	DebugWarning
-	//DebugUpdates print execution updates, warnings and errors
-	DebugUpdates
-	//DebugAll print internal debug messages, execution updates, warnings and errors
-	DebugAll
+	"github.com/drgo/core/ui"
 )
+
+// var debug  ui.Debug
+// // SetDebug sets the default debug level for all package routines
+// func SetDebug(level ui.Debug) {
+// 	debug = level
+// }
+//
 
 //ParserOptions holds parsing options
 type ParserOptions struct {
-	Debug int
+	Debug ui.Debug
 	BufferCap int 
 }
 
 //DefaultParserOptions returns reasonable default for parsing
 func DefaultParserOptions() *ParserOptions {
 	return &ParserOptions{
-		Debug: DebugUpdates,
-		BufferCap: 1024 * 100,
+		Debug: ui.DebugUpdates,
+		BufferCap: 1024 * 10,
 	}
 }
 
+
+func (po ParserOptions ) String() string {
+	return fmt.Sprintf(
+	"Settings: Debug: %s | Buffer Capacity %d\n", po.Debug, po.BufferCap)
+}
 //SetDebug sets verbosity level
-func (po *ParserOptions) SetDebug(d int) *ParserOptions {
+func (po *ParserOptions) SetDebug(d ui.Debug) *ParserOptions {
 	po.Debug = d
 	return po
 }

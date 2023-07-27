@@ -36,9 +36,6 @@ type Node interface {
 	String() string
 	Kind() LineType
 	Key() string
-	// Children() []Node
-	// NthChild(idx int) Node
-	// ValueOf() map[string]string
 	LineNum() int
 	SetLineNum(value int)
 	//returns the textual representation of the node as it should appear in a document
@@ -51,7 +48,8 @@ type BlockNode interface {
 	Node
 	Children() []Node
 	NthChild(idx int) Node
-	AddChild(n Node) Node
+	AddChild(n Node) BlockNode
+	UpdateChild(idx int, n Node) BlockNode
 	// returns nesting level for a node
 	Level() int
 }
@@ -89,22 +87,6 @@ func (bt ttBase) Kind() LineType {
 func (bt ttBase) Key() string {
 	return bt.key //GetValidVarName(bt.key)
 }
-
-// func (bt ttBase) isArray() bool {
-// 	return isArray(bt.key)
-// }
-//
-// func (bt ttBase) Children() []Node {
-// 	return nil
-// }
-//
-// func (bt ttBase) NthChild(idx int) Node{
-// 	return nil
-// }
-//
-// func (bt ttBase) ValueOf() map[string]string {
-// 	return nil
-// }
 
 func (bt ttBase) Value() string {
 	return bt.key
@@ -170,20 +152,6 @@ func (blk ttBlock) String() string {
 	return sb.String()
 }
 
-//
-// func (blk ttBlock) Key() string {
-// 	name := GetValidVarName(blk.key)
-// 	if blk.isArray() {
-// 		return strings.TrimSuffix(name, "list")
-// 	}
-// 	return name
-// }
-
-// func (blk *ttBlock) setName(value string) *ttBlock {
-// 	blk.key = value
-// 	return blk
-// }
-
 func (bt *ttBlock) setLevel(value int) Node {
 	bt.level = value
 	return bt
@@ -193,8 +161,14 @@ func (bt ttBlock) Level() int {
 	return bt.level
 }
 
-func (blk *ttBlock) AddChild(n Node) Node {
+func (blk *ttBlock) AddChild(n Node) BlockNode {
 	blk.children = append(blk.children, n)
+	return blk
+}
+
+
+func (blk *ttBlock) UpdateChild(idx int, n Node) BlockNode {
+	blk.children[idx] =n 
 	return blk
 }
 
@@ -215,9 +189,6 @@ func (blk ttBlock) NthChild(idx int) Node {
 	return blk.children[idx]
 }
 
-// func (blk ttBlock) ChildByName(name string) Node {
-// 	return blk.getChildByName(name)
-// }
 
 type ttAttrib struct {
 	*ttBase
@@ -259,25 +230,12 @@ func (list ttList) String() string {
 	indent := strings.Repeat(" ", list.Level())
 	sb.WriteString(indent + list.ttBase.String() + " " + strconv.Itoa(list.Level()) + "\n")
 	indent = indent + "- "
-	// for k, v := range list.attribs {
-	// 	sb.WriteString(indent+ k)
-	// 	sb.WriteString(" = ")
-	// 	sb.WriteString(v)
-	// 	sb.WriteRune('\n')
-	// }
 	for _, t := range list.children {
 		sb.WriteString(indent + t.String() + "\n")
 	}
 	return sb.String()
 }
 
-// func (list ttList) Children() []Node {
-// 	return list.children
-// }
-// func (blk ttList) NthChild(idx int) Node{
-// 	return blk.children[idx]
-// }
-//
 
 // func GetValidVarName(s string) string {
 // 	ns := []rune{}
@@ -289,19 +247,6 @@ func (list ttList) String() string {
 // 	return string(ns)
 // }
 
-// func (list ttList) Key() string {
-// 	return list.key//strings.TrimSuffix(GetValidVarName(list.key), "list")
-// }
-
-// func (list *ttList) setName(value string) *ttList {
-// 	list.key = value
-// 	return list
-// }
-//
-// func (list *ttList) addChild(n Node) *ttList {
-// 	list.children = append(list.children, n)
-// 	return list
-// }
 
 type ttListItem struct {
 	*ttBase

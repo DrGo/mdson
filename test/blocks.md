@@ -1,4 +1,6 @@
 .parent: root
+.NumBlocks: 8
+
 # Section 1 
 .parent: root
 .name : section 1

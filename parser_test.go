@@ -4,19 +4,38 @@
 package mdson
 
 import (
+	"flag"
+	"fmt"
 	"io"
+	"os"
 	"testing"
+
+	"github.com/drgo/core/ui"
 )
 
+var (
+	blocks, lists, specs io.Reader
+	ctx *Context
+	TestDebug=flag.Int("debug", 0, "")
+
+)
+
+func TestMain(m *testing.M) {
+	flag.Parse()
+	initTestFiles()
+	ctx= NewContext(DefaultParserOptions().SetDebug(ui.Debug(*TestDebug)))
+	fmt.Fprintln(os.Stderr, ctx)
+	e := m.Run()
+    os.Exit(e)
+}
+
 // Equal helper function to test if any two objects of the same type are equal
-var blocks, lists, specs io.Reader
-func init(){
+func initTestFiles(){
 	blocks= mustReadFile("test/blocks.md")
 	lists = mustReadFile("test/lists.md")
 	specs = mustReadFile("test/specs.md") 
 }
 
-var ctx= NewContext(DefaultParserOptions().SetDebug(*TestDebug))
 
 // const TestDebug= DebugAll
 
@@ -26,8 +45,9 @@ func TestParseFileBlock(t *testing.T) {
 	if err != nil {
 		return
 	}
-	t.Logf("%+v", doc)
+	// t.Logf("%+v", doc)
 	Equal(t, doc.root.Kind(), LtBlock)
+	Equal(t, len(doc.root.Children()), 11)
 }
 
 
