@@ -11,8 +11,8 @@ import (
 
 const (
 	TestDir= "../test/gen"
-	FileCount= 101
-	TestDebug = ui.DebugAll
+	FileCount= 100
+	TestDebug = ui.DebugSilent
 )
 
 var cfg = newConfig()
@@ -31,6 +31,11 @@ func Test(t *testing.T) {
 		tu.Equal(t, err, nil)
 		doc, err:= ctx.ParseFile(fn, r)
 		tu.Equal(t, err, nil)
+		if err== nil {
+			continue
+		}
+		tu.Equal(t, doc.Attribs()["name"], fn)
 		t.Log(doc)
+			
 	}	
 }

@@ -28,6 +28,8 @@ const MaxLineLen = 20 //words
 const MaxLineCount = 80 //lines per file 
 
 var wordList = make([]string,0, MaxWord) // loaded from knownWordsFiles
+var classlist=[...]string{"upper","middle","lower"}
+
 var count = flag.Int("n", 100, "number of files to gen; default=100")
 
 func main() {
@@ -47,10 +49,6 @@ func main() {
 
 }
 
-//
-// func forEach(sfs fs.FS, f func(filename string)) error {
-//
-// }
 
 func toss(prob float32) bool {
 	return rand.Float32() < prob 
@@ -62,21 +60,28 @@ const MaxFileName = 6
 
 func genFile(filename string) error {
 	var w  bytes.Buffer
-	genContent(&w, rand.Intn(MaxLineCount))
+	genContent(filename, &w, rand.Intn(MaxLineCount))
 	return os.WriteFile(filename, w.Bytes(), 0664)
 }
 
 func genFileName() string {
 	s := ""
-	for i := 0; i  < MaxFileName ; i ++ {
+	for i := 0; i < MaxFileName ; i ++ {
 		s += wordList[rand.Intn(MaxWord)]
 	}
 	return "gen/"+ s+ ".mdson"
 }
 
-func outSentence(w io.Writer, n int) {
+func outSentence(w io.Writer, n int, fixed string ) {
+	if n==0 {
+		return
+	}	
+	fpos:= rand.Intn(n)
 	for i := 0; i  < n; i ++ {
 		//ignoring errors
+		if i == fpos {
+			fmt.Fprint(w, fixed)
+		}		
 		fmt.Fprint(w, wordList[rand.Intn(MaxWord)], " ")
 		// fmt.Printf("i=%d\n", i)
 	}
@@ -84,23 +89,38 @@ func outSentence(w io.Writer, n int) {
 }
 
 func outHeader(w io.Writer, l int){
- 	fmt.Fprintln(w, "")	
+	fmt.Fprintln(w, "")	
 	fmt.Fprint(w, strings.Repeat("#", l), " ")
-	outSentence(w,10)
+	outSentence(w,10,"")
 }
 
+func genAttribs(w io.Writer, length int) (attribs []string) {	
+	// fmt.Fprintln(w, "")	
+	for i := 0; i < length; i++ {
+		at := wordList[rand.Intn(MaxWord)] 
+		fmt.Fprint(w, "." +at + ":")
+		outSentence(w,3,"")
+		attribs=append(attribs, at)
+	}
+	fmt.Fprintln(w, "")	
+	return attribs
+}	
 func genList(w io.Writer, length int) error {	
- 	fmt.Fprintln(w, "")	
+	fmt.Fprintln(w, "")	
 	fmt.Fprint(w, "~" )
-	outSentence(w,10)
+	outSentence(w,10,"")
 	for i := 0; i < length; i++ {
 		fmt.Fprint(w, "  -" )
-		outSentence(w, rand.Intn(MaxLineLen))
+		outSentence(w, rand.Intn(MaxLineLen), "")
 	}
- 	fmt.Fprintln(w, "")	
+	fmt.Fprintln(w, "")	
 	return nil 
 }	
-func genContent(w io.Writer, length int) error {
+func genContent(filename string, w io.Writer, length int) error {
+	fmt.Fprintln(w, ".name:", filename)
+	fmt.Fprintln(w, ".class:", classlist[rand.Intn(3)])
+	attribs:= genAttribs(w, rand.Intn(6))
+	attribs=append(attribs, "name","class")
 	outHeader(w, 1)
 	for i := 0; i < length; i++ {
 		// output a header 
@@ -114,7 +134,11 @@ func genContent(w io.Writer, length int) error {
 			genList(w, rand.Intn(MaxLineLen))
 		} else {
 			// output a text line
-			outSentence(w, rand.Intn(MaxLineLen))
+			ref := ""
+			if toss(.1) {
+				ref= "{"+ attribs[rand.Intn(len(attribs))] + "} "	
+			}	
+			outSentence(w, rand.Intn(MaxLineLen), ref)
 			// fmt.PrAintf("i=%d\n", i)
 		}
 	}
