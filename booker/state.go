@@ -1,12 +1,14 @@
-package booker 
+package booker
 
 import (
 	"fmt"
-	"github/drgo/mdson"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/drgo/core/ui"
+	"github.com/drgo/mdson"
 )
 const mdson_ext = ".mdson"
 //Algorithm:
@@ -33,8 +35,15 @@ type Config struct {
 
 	PlayEnabled     bool
 	ServeLocalLinks bool // rewrite golang.org/{pkg,cmd} links to host-less, relative paths.
+	Debug  ui.Debug
 }
 
+func newConfig() *Config{
+	cfg := Config {
+		Debug : ui.DebugAll,
+	}	
+	return &cfg
+}
 //Entry holds info on a book/site entry/page
 type Entry struct {
 	doc *mdson.Document
@@ -47,12 +56,14 @@ type State struct{
 	// source filesystem
 	sfs fs.FS
 	cfg *Config
+	ui.UI 
 }
 
 func newState(sfs fs.FS, cfg *Config) *State{
 	return &State{
 		sfs: sfs,
 		cfg: cfg,
+		UI : ui.NewUI(cfg.Debug),
 	}
 }
 // Glob returns a list of all files 

@@ -1,4 +1,0 @@
-github.com/drgo/core v0.1.5 h1:veKmR+3IjdFHNqOKQ2DfRNgboEcGJIzy+1oDD1QCZA4=
-github.com/drgo/core v0.1.5/go.mod h1:bH1iBBkRCdo38ENXWKPcqI9ckqqGLIPctOeH0rEBxUs=
-github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
-golang.org/x/sys v0.0.0-20191005200804-aed5e4c7ecf9/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=

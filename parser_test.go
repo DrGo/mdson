@@ -24,7 +24,7 @@ var (
 func TestMain(m *testing.M) {
 	flag.Parse()
 	initTestFiles()
-	ctx= NewContext(DefaultParserOptions().SetDebug(ui.Debug(*TestDebug)))
+	ctx= NewContext(DefaultOptions().SetDebug(ui.Debug(*TestDebug)))
 	fmt.Fprintln(os.Stderr, ctx)
 	e := m.Run()
     os.Exit(e)

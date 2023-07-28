@@ -23,8 +23,8 @@ type Options struct {
 	DefaultListStyle string 
 }
 
-//DefaultParserOptions returns reasonable default for parsing
-func DefaultParserOptions() *Options {
+//DefaultOptions returns reasonable default for parsing
+func DefaultOptions() *Options {
 	return &Options{
 		Debug: ui.DebugUpdates,
 		BufferCap: 1024 * 10,

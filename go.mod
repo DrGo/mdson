@@ -1,4 +1,4 @@
-module github/drgo/mdson
+module github.com/drgo/mdson
 
 go 1.20
 
