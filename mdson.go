@@ -14,27 +14,31 @@ import (
 // }
 //
 
-//ParserOptions holds parsing options
-type ParserOptions struct {
+//Options holds parsing options
+type Options struct {
 	Debug ui.Debug
-	BufferCap int 
+	BufferCap int
+	// style of md list generated when list style is not specified
+	// ol=ordered, ul=unordered 
+	DefaultListStyle string 
 }
 
 //DefaultParserOptions returns reasonable default for parsing
-func DefaultParserOptions() *ParserOptions {
-	return &ParserOptions{
+func DefaultParserOptions() *Options {
+	return &Options{
 		Debug: ui.DebugUpdates,
 		BufferCap: 1024 * 10,
+		DefaultListStyle: "ol",
 	}
 }
 
 
-func (po ParserOptions ) String() string {
+func (po Options ) String() string {
 	return fmt.Sprintf(
 	"Settings: Debug: %s | Buffer Capacity %d\n", po.Debug, po.BufferCap)
 }
 //SetDebug sets verbosity level
-func (po *ParserOptions) SetDebug(d ui.Debug) *ParserOptions {
+func (po *Options) SetDebug(d ui.Debug) *Options {
 	po.Debug = d
 	return po
 }

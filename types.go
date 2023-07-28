@@ -58,7 +58,6 @@ type BlockNode interface {
 type ttBase struct {
 	lnum  int
 	kind  LineType
-	level int
 	key   string
 }
 

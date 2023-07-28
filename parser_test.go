@@ -6,6 +6,7 @@ package mdson
 import (
 	"flag"
 	"fmt"
+	"github/drgo/mdson/tu"
 	"io"
 	"os"
 	"testing"
@@ -29,11 +30,11 @@ func TestMain(m *testing.M) {
     os.Exit(e)
 }
 
-// Equal helper function to test if any two objects of the same type are equal
+// tu.Equal helper function to test if any two objects of the same type are tu.Equal
 func initTestFiles(){
-	blocks= mustReadFile("test/blocks.md")
-	lists = mustReadFile("test/lists.md")
-	specs = mustReadFile("test/specs.md") 
+	blocks= tu.File.MustRead("test/blocks.md")
+	lists =tu.File.MustRead("test/lists.md")
+	specs =tu.File.MustRead("test/specs.md") 
 }
 
 
@@ -41,39 +42,39 @@ func initTestFiles(){
 
 func TestParseFileBlock(t *testing.T) {
 	doc, err := ctx.ParseFile("test/blocks.md", nil)
-	Equal(t, err, nil)
+	tu.Equal(t, err, nil)
 	if err != nil {
 		return
 	}
 	// t.Logf("%+v", doc)
-	Equal(t, doc.root.Kind(), LtBlock)
-	Equal(t, len(doc.root.Children()), 11)
+	tu.Equal(t, doc.root.Kind(), LtBlock)
+	tu.Equal(t, len(doc.root.Children()), 11)
 }
 
 
 func TestParseFileLists(t *testing.T) {
 	doc, err := ctx.ParseFile("test/lists.md", nil)
-	Equal(t, err, nil)
+	tu.Equal(t, err, nil)
 	if err != nil {
 		return
 	}
 	t.Logf("printout of root node: \n %+v", doc.root)
-	Equal(t, doc.root.Kind(), LtBlock)
+	tu.Equal(t, doc.root.Kind(), LtBlock)
 }
 
 func TestParse(t *testing.T) {
 	doc, err := ctx.ParseFile("", specs)
-	Equal(t, err, nil)
+	tu.Equal(t, err, nil)
 	if err != nil {
 		return
 	}
 	t.Logf("printout of doc: \n %+v", doc)
-	Equal(t, doc.root.Kind(), LtBlock)
+	tu.Equal(t, doc.root.Kind(), LtBlock)
 }
 
 func TestPrinter(t *testing.T) {
 	doc, err := ctx.ParseFile("", specs)
-	Equal(t, err, nil)
+	tu.Equal(t, err, nil)
 	if err != nil {
 		return
 	}

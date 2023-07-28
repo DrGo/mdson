@@ -1,9 +1,6 @@
-package mdson
+package tu
 
 import (
-	"bytes"
-	"io"
-	"os"
 	"reflect"
 	"testing"
 )
@@ -35,16 +32,8 @@ func NotNil(t *testing.T, obj any) {
 	}
 }
 
-func mustReadFile(filename string) io.Reader {	
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		panic("test setup failed" + err.Error())
-	}
-	return bytes.NewReader(content) 
-}
 
-
-func assert(cond bool, msg string) {
+func Assert(cond bool, msg string) {
 	if !cond {
 		panic("assertion failed: "+ msg)
 	}

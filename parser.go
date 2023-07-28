@@ -15,13 +15,13 @@ import (
 
 
 type Context struct {
-	ParserOptions
+	Options
 	ui.UI
 }
 
-func NewContext(options *ParserOptions) *Context {
+func NewContext(options *Options) *Context {
 	ctx := &Context{
-		ParserOptions: *options,
+		Options: *options,
 		UI:            ui.NewUI(options.Debug),
 	}
 	return ctx

@@ -3,6 +3,7 @@ package mdson
 import (
 	"bufio"
 	"fmt"
+	"github/drgo/mdson/tu"
 	"os"
 	"testing"
 )
@@ -18,7 +19,7 @@ func test_md_transform(t *testing.T, doc *Document) {
 
 func TestTransformMD(t *testing.T) {
 	doc, err := ctx.ParseFile("", specs)
-	Equal(t, err, nil)
+	tu.Equal(t, err, nil)
 	if err != nil {
 		return
 	}
@@ -27,7 +28,7 @@ func TestTransformMD(t *testing.T) {
 
 func TestMDBlock(t *testing.T) {
 	doc, err := ctx.ParseFile("test/blocks.md", nil)
-	Equal(t, err, nil)
+	tu.Equal(t, err, nil)
 	if err != nil {
 		return
 	}

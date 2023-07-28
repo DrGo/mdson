@@ -15,36 +15,54 @@ type Transformer interface {
 type MDTransformer struct {
 	w io.Writer
 	ctx *Context
+	indent string
+	listMarker string 
+	TabWidth int
 }
 
 func newMDTransformer(w io.Writer, ctx *Context) MDTransformer {
-	return MDTransformer{
+	mdt:= MDTransformer{
 		ctx :ctx,
 		w:  w,
+		TabWidth: 2,
 	}
+	mdt.listMarker= "-"
+	if mdt.ctx.DefaultListStyle=="ol" {
+		mdt.listMarker="1."
+	}	
+	return mdt 
 }
+
 func (m MDTransformer) print(s string) {
+	fmt.Fprint(m.w,  s)
+}
+
+func (m MDTransformer) println(s string) {
 	fmt.Fprint(m.w, s, EOL)
-	// m.w.Write([]byte(EOL))
 }
 
 func (m MDTransformer) printNode(n Node) {
 	m.ctx.Log("printNode():", n)
 	switch n := n.(type) {
 	case *ttBlock:
-		if n.Level() > 0 { // donot print root
-			m.print(strings.Repeat("#", n.Level()) + " " + n.Value())
-		}	
-			for _, n := range n.Children() {
-				m.printNode(n)
-			}
+		if n.Level() > 0 { // donot print root's title
+			m.println(strings.Repeat("#", n.Level()) + " " + n.Value())
+		}
+		m.indent = strings.Repeat(" ", n.Level()* m.TabWidth)
+		for _, n := range n.Children() {
+			m.printNode(n)
+		}
 	case *ttList:
-		m.print(n.Value())
-			for _, n := range n.Children() {
-				m.printNode(n)
-			}
+		m.println(n.Value())
+		m.indent = strings.Repeat(" ", n.Level()* m.TabWidth)
+		for _, n := range n.Children() {
+			m.printNode(n)
+		}
+	case *ttListItem:
+		m.print(m.indent+ m.listMarker)
+		m.println(n.Value())
 	default:
-		m.print(n.Value())
+		m.println(n.Value())
 	}
 }
 
