@@ -1,7 +1,7 @@
 package mdson
 
 import (
-	"github/drgo/mdson/tu"
+	"github.com/drgo/mdson/tu"
 	"testing"
 )
 

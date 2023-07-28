@@ -6,10 +6,11 @@ package mdson
 import (
 	"flag"
 	"fmt"
-	"github/drgo/mdson/tu"
 	"io"
 	"os"
 	"testing"
+
+	"github.com/drgo/mdson/tu"
 
 	"github.com/drgo/core/ui"
 )

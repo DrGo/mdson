@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github/drgo/mdson"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/drgo/mdson"
 )
 const mdson_ext = ".mdson"
 //Algorithm:

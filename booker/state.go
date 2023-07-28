@@ -19,8 +19,7 @@ const mdson_ext = ".mdson"
 
 
 type Config struct {
-	// Dirs ignored in search and processing
-	IgnoredDirs []string
+	IgnoredDirs []string 	// Dirs ignored in search and processing
 	ContentPath  string // Relative or absolute location of article files and related content.
 	TemplatePath string // Relative or absolute location of template files.
 

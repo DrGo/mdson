@@ -3,7 +3,7 @@ package mdson
 import (
 	"bufio"
 	"fmt"
-	"github/drgo/mdson/tu"
+	"github.com/drgo/mdson/tu"
 	"os"
 	"testing"
 )
