@@ -58,9 +58,11 @@ type State struct{
 	ui.UI 
 }
 
-func newState(sfs fs.FS, cfg *Config) *State{
+//newState takes a read-only virtual filesystem (rofs) that includes all the source files 
+// 
+func newState(rofs fs.FS, cfg *Config) *State{
 	return &State{
-		sfs: sfs,
+		sfs: rofs,
 		cfg: cfg,
 		UI : ui.NewUI(cfg.Debug),
 	}
@@ -68,14 +70,11 @@ func newState(sfs fs.FS, cfg *Config) *State{
 // Glob returns a list of all files 
 // TODO: ignore dirs starting with .
 // TODO: support filepath.glob 
-func (s *State) Glob(pattern string) ([]string, error) {
-	var paths []string
-
-	err := fs.WalkDir(s.sfs, ".", func(path string, de fs.DirEntry, err error) error {
+func (s *State) Glob(pattern string) (paths []string, err error) {
+	err = fs.WalkDir(s.sfs, ".", func(path string, de fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-
 		base := filepath.Base(path)
 		for _, sp := range s.cfg.IgnoredDirs {
 			// if the name of the folder has a prefix listed in SkipPaths
@@ -85,16 +84,12 @@ func (s *State) Glob(pattern string) ([]string, error) {
 				return filepath.SkipDir
 			}
 		}
-
 		if filepath.Ext(path) != mdson_ext {
 			return nil
 		}
-
 		paths = append(paths, path)
-
 		return nil
 	})
-
 	return paths, err
 }
 
