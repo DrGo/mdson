@@ -4,6 +4,7 @@ package wfs
 // Copyright 2020 The Go Authors. All rights reserved.
 // Modified by Salah Mahmud to support bigger files
 import (
+	"bytes"
 	"io"
 	"io/fs"
 	"path"
@@ -29,7 +30,7 @@ import (
 // Another implication is that opening or reading a directory requires
 // iterating over the entire map, so a FS should typically be used with not more
 // than a few hundred entries or directory reads.
-type FS struct{ 
+type FS struct {
 	m map[string]*WFile
 }
 
@@ -41,15 +42,15 @@ func NewFS() FS {
 
 // A WFile describes a single file in a MapFS.
 type WFile struct {
-	Data    []byte      // file content
-	Mode    fs.FileMode // FileInfo.Mode
-	ModTime time.Time   // FileInfo.ModTime
-	Sys     any         // FileInfo.Sys
+	bytes.Buffer             // file content
+	Mode         fs.FileMode // FileInfo.Mode
+	ModTime      time.Time   // FileInfo.ModTime
+	Sys          any         // FileInfo.Sys
 }
 
 var _ fs.FS = FS(FS{})
 var _ fs.File = (*openWFile)(nil)
-
+var _ io.WriteCloser = (*openWFile)(nil)
 // Open opens the named file.
 func (fsys FS) Open(name string) (fs.File, error) {
 	if !fs.ValidPath(name) {
@@ -59,6 +60,7 @@ func (fsys FS) Open(name string) (fs.File, error) {
 	if file != nil && file.Mode&fs.ModeDir == 0 {
 		// Ordinary file
 		return &openWFile{name, wFileInfo{path.Base(name), file}, 0}, nil
+
 	}
 
 	// Directory, possibly synthesized.
@@ -145,7 +147,13 @@ func (fsys FS) Glob(pattern string) ([]string, error) {
 // If the file does not exist, WriteFile creates it with permissions perm (before umask);
 // otherwise WriteFile truncates it before writing, without changing permissions.
 func (fsys FS) WriteFile(name string, data []byte, perm fs.FileMode) error {
-	fsys.m[name] = &WFile{Data: data, Mode: perm, ModTime:time.Now().Local()}	
+	f := &WFile{
+		//Buffer needs no initialization
+		Mode:    perm,
+		ModTime: time.Now().Local(),
+	}
+	f.Write(data)
+	fsys.m[name] = f
 	return nil
 }
 
@@ -166,7 +174,7 @@ type wFileInfo struct {
 }
 
 func (i *wFileInfo) Name() string               { return i.name }
-func (i *wFileInfo) Size() int64                { return int64(len(i.f.Data)) }
+func (i *wFileInfo) Size() int64                { return int64(i.f.Len()) }
 func (i *wFileInfo) Mode() fs.FileMode          { return i.f.Mode }
 func (i *wFileInfo) Type() fs.FileMode          { return i.f.Mode.Type() }
 func (i *wFileInfo) ModTime() time.Time         { return i.f.ModTime }
@@ -190,13 +198,13 @@ func (f *openWFile) Stat() (fs.FileInfo, error) { return &f.wFileInfo, nil }
 func (f *openWFile) Close() error { return nil }
 
 func (f *openWFile) Read(b []byte) (int, error) {
-	if f.offset >= int64(len(f.f.Data)) {
+	if f.offset >= int64(f.f.Len()) {
 		return 0, io.EOF
 	}
 	if f.offset < 0 {
 		return 0, &fs.PathError{Op: "read", Path: f.path, Err: fs.ErrInvalid}
 	}
-	n := copy(b, f.f.Data[f.offset:])
+	n := copy(b, f.f.Bytes()[f.offset:])
 	f.offset += int64(n)
 	return n, nil
 }
@@ -208,9 +216,9 @@ func (f *openWFile) Seek(offset int64, whence int) (int64, error) {
 	case 1:
 		offset += f.offset
 	case 2:
-		offset += int64(len(f.f.Data))
+		offset += int64(f.f.Len())
 	}
-	if offset < 0 || offset > int64(len(f.f.Data)) {
+	if offset < 0 || offset > int64(f.f.Len()) {
 		return 0, &fs.PathError{Op: "seek", Path: f.path, Err: fs.ErrInvalid}
 	}
 	f.offset = offset
@@ -218,16 +226,18 @@ func (f *openWFile) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (f *openWFile) ReadAt(b []byte, offset int64) (int, error) {
-	if offset < 0 || offset > int64(len(f.f.Data)) {
+	if offset < 0 || offset > int64(f.f.Len()) {
 		return 0, &fs.PathError{Op: "read", Path: f.path, Err: fs.ErrInvalid}
 	}
-	n := copy(b, f.f.Data[offset:])
+	n := copy(b, f.f.Bytes()[offset:])
 	if n < len(b) {
 		return n, io.EOF
 	}
 	return n, nil
 }
-
+func (f *openWFile) Write(p []byte) (int, error) {
+	return f.f.Write(p)
+}
 // A wDir is a directory fs.File (so also an fs.ReadDirFile) open for reading.
 type wDir struct {
 	path string
@@ -257,4 +267,3 @@ func (d *wDir) ReadDir(count int) ([]fs.DirEntry, error) {
 	d.offset += n
 	return list, nil
 }
-
