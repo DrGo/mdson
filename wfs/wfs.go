@@ -51,6 +51,7 @@ type WFile struct {
 var _ fs.FS = FS(FS{})
 var _ fs.File = (*openWFile)(nil)
 var _ io.WriteCloser = (*openWFile)(nil)
+
 // Open opens the named file.
 func (fsys FS) Open(name string) (fs.File, error) {
 	if !fs.ValidPath(name) {
@@ -181,10 +182,7 @@ func (i *wFileInfo) ModTime() time.Time         { return i.f.ModTime }
 func (i *wFileInfo) IsDir() bool                { return i.f.Mode&fs.ModeDir != 0 }
 func (i *wFileInfo) Sys() any                   { return i.f.Sys }
 func (i *wFileInfo) Info() (fs.FileInfo, error) { return i, nil }
-
-func (i *wFileInfo) String() string {
-	return fs.FormatFileInfo(i)
-}
+func (i *wFileInfo) String() string             { return fs.FormatFileInfo(i) }
 
 // An openWFile is a regular (non-directory) fs.File open for reading.
 type openWFile struct {
@@ -238,6 +236,7 @@ func (f *openWFile) ReadAt(b []byte, offset int64) (int, error) {
 func (f *openWFile) Write(p []byte) (int, error) {
 	return f.f.Write(p)
 }
+
 // A wDir is a directory fs.File (so also an fs.ReadDirFile) open for reading.
 type wDir struct {
 	path string
