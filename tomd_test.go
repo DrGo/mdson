@@ -3,9 +3,10 @@ package mdson
 import (
 	"bufio"
 	"fmt"
-	"github.com/drgo/mdson/tu"
 	"os"
 	"testing"
+
+	"github.com/drgo/booker/tu"
 )
 
 func test_md_transform(t *testing.T, doc *Document) {

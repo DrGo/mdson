@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/drgo/mdson/tu"
+	"github.com/drgo/booker/tu"
 
 	"github.com/drgo/core/ui"
 )
