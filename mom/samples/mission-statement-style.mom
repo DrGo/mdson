@@ -1,0 +1,51 @@
+.hw presen-tational
+.
+.char \[TeX]  T\*[DOWN .3n]\s'-1'\*[BU2]E\s'+1'\*[UP .3n]X
+.char \[man]  \f[BKI]man\/\f[]
+.char \[mdoc] \f[BKI]mdoc\/\f[]
+.char \[mom]  \f[DB]mom\/\f[]
+.
+.fzoom OptimaBKI 980
+.
+.PRINTSTYLE TYPESET
+.
+.T_MARGIN 1.4i
+.L_MARGIN 1.3i
+.R_MARGIN 1.3i
+.
+.FAMILY   Optima
+.PP_FONT  BK
+.PT_SIZE  12.5
+.RW      .03
+.AUTOLEAD 4.5
+.SS       +1
+.
+.TITLE_FAMILY Optima
+.TITLE_FONT   B
+.TITLE_SIZE   +7
+.
+.SUBTITLE_FAMILY Optima
+.SUBTITLE_FONT   B
+.SUBTITLE_SIZE   +4
+.
+.DOCHEADER_LEAD  +5
+.
+.HEADING_STYLE 1 FAMILY Optima  FONT DB  SIZE +3  BASELINE_ADJUST .25v  NO_SPACE_AFTER
+.HEADING_STYLE 2 FAMILY Optima  FONT DB  SIZE +1  BASELINE_ADJUST 1p
+.
+.PARA_INDENT 0
+.PARA_SPACE .5v
+.
+.HEADER_MARGIN 4P+9p
+.HEADER_RULE   off
+.
+.FOOTER_MARGIN   3P+6p
+.PAGENUM_HYPHENS off
+.
+.RECTO_VERSO
+.
+.SP |10P
+.PDF_IMAGE gnu-head-groff.pdf 199.975p 156.98p SCALE 50
+.
+.START
+.SP 3v
