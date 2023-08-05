@@ -9,36 +9,52 @@ import (
 const EOL = "\r\n"
 
 type Transformer interface {
-	Transform(w io.Writer, n Node) error
+	Transform(w io.Writer, d *Document) error
 }
 
-type MDTransformer struct {
+type printer struct{
 	w io.Writer
+}
+
+func (p printer) print(s string) {
+	fmt.Fprint(p.w,  s)
+}
+
+func (p printer) println(s string) {
+	fmt.Fprint(p.w, s, EOL)
+}
+
+//cfg holds basic output control vars 
+type cfg struct{
 	ctx *Context
 	indent string
 	listMarker string 
 	TabWidth int
 }
 
+func newCfg(ctx *Context) cfg{
+	cfg := cfg {
+		ctx: ctx,
+		TabWidth: 2,
+	}
+	return cfg 
+}
+
+type MDTransformer struct {
+	printer
+	cfg 
+}
+
 func newMDTransformer(w io.Writer, ctx *Context) MDTransformer {
 	mdt:= MDTransformer{
-		ctx :ctx,
-		w:  w,
-		TabWidth: 2,
+		cfg :newCfg(ctx),
+		printer:  printer{w: w},
 	}
 	mdt.listMarker= "-"
 	if mdt.ctx.DefaultListStyle=="ol" {
 		mdt.listMarker="1."
 	}	
 	return mdt 
-}
-
-func (m MDTransformer) print(s string) {
-	fmt.Fprint(m.w,  s)
-}
-
-func (m MDTransformer) println(s string) {
-	fmt.Fprint(m.w, s, EOL)
 }
 
 func (m MDTransformer) printNode(n Node) {
