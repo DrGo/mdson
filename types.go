@@ -23,12 +23,17 @@ const (
 	// LtLiteralString
 	LtAttrib
 	LtTextLine
+	LtCustom
 )
 
 func (lt LineType) String() string {
 	//[...] creates an array rather than a slice
+	if lt >=LtCustom {
+		return "Unknown"
+	}	
 	return [...]string{"Read Error", "Syntax Error", "EOF",
-		"Empty", "Comment", "List", "List item", "Block", "Attribute", "Text line"}[lt]
+		"Empty", "Comment", "List", "List item", "Block", "Attribute", "Text line",
+	"Custom"}[lt]
 }
 
 // Node implement parser's AST leaf node
@@ -42,6 +47,10 @@ type Node interface {
 	Value() string
 	// sets the textual representation of the node as it should appear in a document
 	SetValue(s string) Node
+
+	// returns nesting level for a node
+	Level() int
+	SetLevel(value int) Node
 }
 
 type BlockNode interface {
@@ -50,12 +59,11 @@ type BlockNode interface {
 	NthChild(idx int) Node
 	AddChild(n Node) BlockNode
 	UpdateChild(idx int, n Node) BlockNode
-	// returns nesting level for a node
-	Level() int
 }
 
 // baseToken implements the basic token interface root of all of other tokens
 type ttBase struct {
+	level    int
 	lnum  int
 	kind  LineType
 	key   string
@@ -73,10 +81,10 @@ func (bt *ttBase) SetLineNum(value int) {
 	bt.lnum = value
 }
 
-const nodeDescLine = "type=%s, lineNum=%d, key='%s',value='%s'"
+const nodeDescLine = "type=%s, lineNum=%d, level=%d, key='%s',value='%s'"
 
 func (bt ttBase) String() string {
-	return fmt.Sprintf(nodeDescLine, bt.Kind(), bt.LineNum(), bt.Key(), bt.Value())
+	return fmt.Sprintf(nodeDescLine, bt.Kind(), bt.LineNum(), bt.Level(), bt.Key(), bt.Value())
 }
 
 func (bt ttBase) Kind() LineType {
@@ -94,6 +102,15 @@ func (bt ttBase) Value() string {
 func (bt *ttBase) SetValue(s string) Node {
 	bt.key = s
 	return bt
+}
+
+func (bt *ttBase) SetLevel(value int) Node {
+	bt.level = value
+	return bt
+}
+
+func (bt ttBase) Level() int {
+	return bt.level
 }
 
 type ttReadError struct {
@@ -130,13 +147,13 @@ func newSyntaxError(value interface{}) *ttSyntaxError {
 
 type ttBlock struct {
 	*ttBase
-	level    int
 	children []Node
 }
 
 func newBlock(key string, level int) *ttBlock {
-	return &ttBlock{ttBase: newBase(LtBlock, key),
-		level: level,}
+	tb:= &ttBlock{ttBase: newBase(LtBlock, key)}
+	tb.SetLevel(level)
+	return tb
 }
 
 func (blk ttBlock) String() string {
@@ -151,16 +168,11 @@ func (blk ttBlock) String() string {
 	return sb.String()
 }
 
-func (bt *ttBlock) setLevel(value int) Node {
-	bt.level = value
-	return bt
-}
 
-func (bt ttBlock) Level() int {
-	return bt.level
-}
 
+//AddChild adds a child and sets its level to parent.Level + 1
 func (blk *ttBlock) AddChild(n Node) BlockNode {
+	n.SetLevel(blk.Level() + 1)
 	blk.children = append(blk.children, n)
 	return blk
 }

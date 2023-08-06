@@ -12,8 +12,8 @@ import (
 func test_md_transform(t *testing.T, doc *Document) {
 	t.Helper()
 	w:= 	bufio.NewWriter(os.Stdout)
-	md :=newMDTransformer(w, ctx) 
-	md.Transform( doc)
+	md :=newMDTransformer(ctx) 
+	md.Transform(w,doc)
 	fmt.Println("********************************output************")
 	w.Flush()
 }

@@ -17,10 +17,10 @@ func trimLeftSpace(s string) string {
 
 // getBlockInfo returns header name and level eg "###Document" returns "document", 3}
 // returned name is always lower-case (see parser_test.go for more details)
-//assumes that is called for a string that starts with #
+//assumes that is called for a string that starts with a space followed by #*
 func getBlockInfo(line string) (string, int) {
 	// hot path
-	if line[0] != '#'{
+	if len(line)< 2 || line[0] != ' ' || line[1] != '#'{
 		return "", -1 //not a block
 	} 
 	// find the first non-# char

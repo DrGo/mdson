@@ -185,7 +185,6 @@ func (p *Parser) parseBlock(parent BlockNode) bool {
 		case *ttList:
 			ok := p.parseList(n)
 			p.ctx.Log("in *ttlist case after returning from parseList")
-			n.setLevel(parent.Level() + 1)
 			parent.AddChild(n)
 			if !ok {
 				break

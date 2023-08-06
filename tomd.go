@@ -40,15 +40,16 @@ func newCfg(ctx *Context) cfg{
 	return cfg 
 }
 
+var _ = Transformer(* &MDTransformer{})
+
 type MDTransformer struct {
 	printer
 	cfg 
 }
 
-func newMDTransformer(w io.Writer, ctx *Context) MDTransformer {
+func newMDTransformer(ctx *Context) MDTransformer {
 	mdt:= MDTransformer{
 		cfg :newCfg(ctx),
-		printer:  printer{w: w},
 	}
 	mdt.listMarker= "-"
 	if mdt.ctx.DefaultListStyle=="ol" {
@@ -83,7 +84,8 @@ func (m MDTransformer) printNode(n Node) {
 }
 
 // TODO: check for writing errors
-func (m MDTransformer) Transform(doc *Document) error {
+func (m MDTransformer) Transform(w io.Writer, doc *Document) error {	
+	m.printer=  printer{w: w}
 	m.printNode(doc.root)
 	// m.w.Flush()
 	return nil
