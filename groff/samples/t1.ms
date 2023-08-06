@@ -146,15 +146,28 @@ Headers and footers
 .\"Use groff options to run preprocessors on the input: -e for geqn, -p for gpic, -R for grefer, and -t for gtbl.
 
 
-.TS H
-allbox expand;
-cb | cb .
-Text      ...of heading...
-_
-.TH
-.T&
-l | l .
-... the rest of the table follows...
-.CW
-.TE
+.\" .TS H
+.\" allbox expand;
+.\" cb | cb .
+.\" Text      ...of heading...
+.\" _
+.\" .TH
+.\" .T&
+.\" l | l .
+.\" ... the rest of the table follows...
+.\" .CW
+.\" .TE
+
+.NH 1 
+Quotes
+.LP
+Christine Peterson coined the phrase \*(lqopen source.\*(rq
+.LP 
+.(q
+On April 7, 1998, Tim O'Reilly held a meeting of key
+leaders in the field. Announced in advance as the first
+.q "Freeware Summit,"
+by April 14 it was referred to as the first
+.q "Open Source Summit."
+.)q
 
