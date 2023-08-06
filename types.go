@@ -105,6 +105,9 @@ func (bt *ttBase) SetValue(s string) Node {
 }
 
 func (bt *ttBase) SetLevel(value int) Node {
+	if value <0 {
+		panic("Level below zero is not permitted")
+	}	
 	bt.level = value
 	return bt
 }

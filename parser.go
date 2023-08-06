@@ -237,8 +237,10 @@ func (p *Parser) parseLine(line string) Node {
 	case '#':
 		name, level := getBlockInfo(line)
 		// p.Log("******************** Block:", line, name, level)
-		return newBlock(name, level) //FIXME: change to take name and level
-	//keep tilde as another possible marker
+		if level> -1 {
+			return newBlock(name, level)
+		}	
+		return newTextLine(line)
 	case '~':
 		//scenario 7: a list 
 		return newList(line[1:], 0)

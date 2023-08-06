@@ -20,13 +20,17 @@ func trimLeftSpace(s string) string {
 //assumes that is called for a string that starts with a space followed by #*
 func getBlockInfo(line string) (string, int) {
 	// hot path
-	if len(line)< 2 || line[0] != ' ' || line[1] != '#'{
+	lgth := len(line)
+	if lgth < 2 || line[0] != '#'{
 		return "", -1 //not a block
 	} 
 	// find the first non-# char
 	i := 1
-	for ; i < len(line) && line[i] == '#'; i++ { //FIXME: for utf8 use
-	}
+	for ; i < lgth && line[i] == '#'; i++ { }
+	//next char should be space 
+	if i < lgth && line[i+1] != ' ' {
+		return "", -1
+	}	
 	name := strings.TrimSpace(line[i:])
 	if name == "" { //no name, heading but invalid
 		return "", -1
