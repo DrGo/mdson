@@ -1,46 +1,11 @@
-#set document(title: "Health")
-#set page( 
-  paper: "us-letter",
-//  numbering: "1",
-//  number-align: right,
-  header: locate(loc => {
-  let elems = query(
-    selector(heading).before(loc),loc,
-  )
-  let even=calc.even(counter(page).at(loc).at(0))
-  let chap_title = smallcaps[
-    Typst chap_title
-  ]
-  let page=[#loc.page()]
-  if even {
-    page + h(1fr) + chap_title 
-  } else {
-  //if headers are available ie after 1st section
-    if elems.len()>0 {
-      let body = smallcaps(counter(heading).display() + " " + elems.last().body) 
-       emph(body) + h(1fr) + page 
-    }  
-  }
-}),   
-  margin: (x: 3cm, y: 3cm),
-  //margin: (top: 16pt, bottom: 24pt), 
+#import "chapter.typ": *
+#show: chapter.with(
+  title: "Tutorial",
+  bibliography-file: "refs.bib",
 )
-#set heading(
-  numbering: "1.1",    
-)
-
-#set par(
-  justify: true,
-  leading: 0.78em, 
-)
-#set text(
-  font: "Minion Pro",
-  size: 11pt,
-)
-
 = Tutorial
 
-This chapter is a tour of the basic components of Go. We hope to provide enough information and examples to get you off the ground and doing useful things as quickly as possible. The examples here, and indeed in the whole book, are aimed at tasks that you might have to do in the real world. In this chapter we’ll try to give you a taste of the diversity of programs that one might write in Go, ranging from simple file processing and a bit of graphics to concurrent Internet clients and servers. We certainly won’t explain everything in the first chapter, but studying such programs in a new language can be an effective way to get started.
+This chapter is a tour of the basic components of Go. We hope to provide enough information and examples to get you off the ground and doing useful things as quickly as possible. The examples here, and indeed in the whole book, are aimed at tasks that you might have to do in the real world. In this chapter we’ll try to give you a taste of the diversity of programs that one might write in Go, ranging from simple file processing and a bit of graphics to concurrent Internet clients and servers. We certainly won’t explain everything in the first chapter, but studying such programs in a new language can be an effective way to get started. @netwok2020
 
 When you’re learning a new language, there’s a natural tendency to write code as you would have written it in a language you already know. Be aware of this bias as you learn Go and try to avoid it. We’ve tried to illustrate and explain how to write good Go, so use the code here as a guide when you’re writing your own.
 
@@ -142,24 +107,24 @@ There are several new constructs in this code, including const declarations, str
      import (
          "image"
 )`
-
-  [
-    #locate(loc => {
-      if calc.even(counter(page).at(loc).at(0)) {
-//        counter(heading).display()
-//        " "
-        query(selector(heading.where(level: 1)).before(loc),loc).last().body
-        [#h(1fr)]
-        [#loc.page()]
-      } else {
-       [#loc.page()]
-       [#h(1fr)]
-       smallcaps[]
-      }
-    })
-//    #h(1fr) _Exercise Sheet 3_
-    #v(1em)
-//    #line(length: 100%, stroke: 1pt)
-    #set text(9pt)
-  ], header-ascent: 30%)
+  In case you missed it, there's a recording on #link("http://purview.edu/lts/2023-lee")[EDGARP].
+  // [
+  //   #locate(loc => {
+  //     if calc.even(counter(page).at(loc).at(0)) {
+// //        counter(heading).display()
+// //        " "
+  //       query(selector(heading.where(level: 1)).before(loc),loc).last().body
+  //       [#h(1fr)]
+  //       [#loc.page()]
+  //     } else {
+  //      [#loc.page()]
+  //      [#h(1fr)]
+  //      smallcaps[]
+  //     }
+  //   })
+// //    #h(1fr) _Exercise Sheet 3_
+  //   #v(1em)
+// //    #line(length: 100%, stroke: 1pt)
+  //   #set text(9pt)
+  // ], header-ascent: 30%)
 
