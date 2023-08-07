@@ -16,8 +16,6 @@ bibliography-file: none,
 // The chapter's content.
 body,
 ) = {
-  //set potential parameters or options
-
 
   // Set the document's metadata.
   set document(title: title, author: author)
@@ -30,24 +28,23 @@ body,
         footer-descent: 0.3in,
 
         numbering: "1",
-
-        // The header always contains the book title on odd pages and
-        // the chapter title on even pages, unless the page is one
+        //TODO: allow optional header + page numbers
+        // The header always contains the chapter title on odd pages and
+        // the section title on even pages, unless the page is one
         // the starts a chapter (the chapter title is obvious then).
         header: locate(loc => {
-            // Are we on an odd page?
+            // Are we on an odd page? at() returns an array but we know it has one value
             let i = counter(page).at(loc).first()
+            // let pagenum=[#loc.page()]
             if calc.odd(i) {
               return text(0.95em, smallcaps(title))
             }
-
           // Are we on a page that starts a chapter? (We also check
           // the previous page because some headings contain pagebreaks.)
           let all = query(heading, loc)
             if all.any(it => it.location().page() in (i - 1, i)) {
             return
           }
-
           // Find the heading of the section we are currently in.
           let before = query(selector(heading).before(loc), loc)
           if before != () {
@@ -55,8 +52,6 @@ body,
           }
           }),
         )
-
-          //TODO merge good ideas
           //header: locate(loc => {
           //let elems = query(
           //  selector(heading).before(loc),loc,
@@ -209,4 +204,14 @@ body,
     none, none,
     v(8pt) + align(right, text(font: "Barlow")[---#by]),
   )
-})
+}A
+)
+
+// A theorum block as ann example of a custom counter
+// #theorem[$1 = 1$]
+#let c = counter("theorem")
+#let theorem(it) = block[
+  #c.step()
+  *Theorem #c.display():* #it
+]
+

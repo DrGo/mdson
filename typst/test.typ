@@ -7,7 +7,10 @@
 
 This chapter is a tour of the basic components of Go. We hope to provide enough information and examples to get you off the ground and doing useful things as quickly as possible. The examples here, and indeed in the whole book, are aimed at tasks that you might have to do in the real world. In this chapter we’ll try to give you a taste of the diversity of programs that one might write in Go, ranging from simple file processing and a bit of graphics to concurrent Internet clients and servers. We certainly won’t explain everything in the first chapter, but studying such programs in a new language can be an effective way to get started. @netwok2020
 
-When you’re learning a new language, there’s a natural tendency to write code as you would have written it in a language you already know. Be aware of this bias as you learn Go and try to avoid it. We’ve tried to illustrate and explain how to write good Go, so use the code here as a guide when you’re writing your own.
+When you’re learning a new language, there’s a natural tendency to write code as you would have written it in a language you already know. Be aware of this bias as you learn Go and try to avoid it. We’ve tried to illustrate and explain how to write goodYou can edit Typst documents online.
+#footnote[https://typst.app/app] <fn>
+Checkout Typst's website. @fn
+And the online app. #footnote(<fn>) Go, so use the code here as a guide when you’re writing your own.
 
 == Hello World
 We’ll start with the now-traditional ‘‘hello, world’’ example, which appears at the beginning of The C Programming Language, published in 1978. C is one of the most direct influences on Go, and ‘‘hello, world’’ illustrates a number of central ideas.
