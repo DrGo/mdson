@@ -151,6 +151,20 @@ body,
     )
       // Links should be underlined.
   show link: underline
+  // footnotes
+  set footnote.entry(
+    gap: 0.8em
+  )
+  // numbering of footnotes
+ show footnote.entry: it => {
+  let loc = it.note.location()
+  numbering(
+    "1: ",
+    ..counter(footnote).at(loc),
+  )
+  it.note.body
+}
+
 // Configure figures.
   show figure: it => block({
     // Display a backdrop rectangle.
@@ -204,7 +218,7 @@ body,
     none, none,
     v(8pt) + align(right, text(font: "Barlow")[---#by]),
   )
-}A
+}
 )
 
 // A theorum block as ann example of a custom counter
@@ -214,4 +228,14 @@ body,
   #c.step()
   *Theorem #c.display():* #it
 ]
+
+// custom block
+// #task(critical: true)[Food today?]
+//#task(critical: false)[Work deadline]
+
+#let task(body, critical: false) = {
+  set text(red) if critical
+  [- #body]
+}
+
 
