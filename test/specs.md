@@ -10,12 +10,27 @@
 .prop can have long name: some value
 .weight: 1
 .date: 12July2023
+.chapter: My chapter Name 
+.book: my great book
 .prop with multiline values: are not allowed
  .this is not a prop because the first char is space
 
 // you could refer to any of the above props anywhere in the doc like this {.date}
 .today: Today is {date}
 date {today}
+last date of my book titled {book} was on {date}
+
+-- text==Data .mdson --> booker ---> typst file + typst template --> pdf 
+-- html + css
+
+-- table of figures .
+== tables of lists 
+-- structure + presentation --> 
+
+# introduction
+
+part of my {book}
+# {chapter}
 
 // section names are regular markdown headers starting with one or more #
 ## introduction
@@ -25,13 +40,17 @@ date {today}
 // refer to the computed .today value above
 date {today}
 
+The most important cause of CHF is {chapter.chf[1]}
+{chapter1.chf[1]} 
+
+see @Figxxx --> See Figure 100 
 // A list starts with ~ and continues until the next non-list item element 
 // this is a list named "Causes of heart failure". The name is all the text
 // before the colon and both the name and colon are mandatory
-~Causes of heart failure:
+~Causes of heart failure <chf>:
 //- list item starts with -
-- Hypertension
 - Atrial fibrillation
+- Hypertension
 - Myocardial infarction
 // This list can be referred to as {.Causes of heart failure}
 // its first element can be referred to as {.Causes of heart failure[0]}
