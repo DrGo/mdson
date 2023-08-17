@@ -24,59 +24,53 @@ func (p printer) println(s string) {
 	fmt.Fprint(p.w, s, EOL)
 }
 
-//cfg holds basic output control vars 
-type cfg struct{
-	ctx *Context
-	indent string
-	listMarker string 
+//TransformerConfig holds basic output control vars 
+type TransformerConfig struct{
+	Indent string
+	ListMaker string 
 	TabWidth int
 }
 
-func newCfg(ctx *Context) cfg{
-	cfg := cfg {
-		ctx: ctx,
+func DefaultTransformerConfig() TransformerConfig{
+	cfg := TransformerConfig {
 		TabWidth: 2,
 	}
 	return cfg 
 }
 
-var _ = Transformer(* &MDTransformer{})
+var _ Transformer=&MDTransformer{}
 
 type MDTransformer struct {
 	printer
-	cfg 
+	TransformerConfig 
 }
 
-func newMDTransformer(ctx *Context) MDTransformer {
+func NewMDTransformer(cfg TransformerConfig) MDTransformer {
 	mdt:= MDTransformer{
-		cfg :newCfg(ctx),
+		TransformerConfig :cfg,
 	}
-	mdt.listMarker= "-"
-	if mdt.ctx.DefaultListStyle=="ol" {
-		mdt.listMarker="1."
-	}	
 	return mdt 
 }
 
 func (m MDTransformer) printNode(n Node) {
-	m.ctx.Log("printNode():", n)
+	// m.ctx.Log("printNode():", n)
 	switch n := n.(type) {
 	case *ttBlock:
 		if n.Level() > 0 { // donot print root's title
 			m.println(strings.Repeat("#", n.Level()) + " " + n.Value())
 		}
-		m.indent = strings.Repeat(" ", n.Level()* m.TabWidth)
+		m.Indent = strings.Repeat(" ", n.Level()* m.TabWidth)
 		for _, n := range n.Children() {
 			m.printNode(n)
 		}
 	case *ttList:
 		m.println(n.Value())
-		m.indent = strings.Repeat(" ", n.Level()* m.TabWidth)
+		m.Indent = strings.Repeat(" ", n.Level()* m.TabWidth)
 		for _, n := range n.Children() {
 			m.printNode(n)
 		}
 	case *ttListItem:
-		m.print(m.indent+ m.listMarker)
+		m.print(m.Indent+ m.ListMaker)
 		m.println(n.Value())
 	default:
 		m.println(n.Value())
@@ -84,8 +78,8 @@ func (m MDTransformer) printNode(n Node) {
 }
 
 // TODO: check for writing errors
-func (m MDTransformer) Transform(w io.Writer, doc *Document) error {	
-	m.printer=  printer{w: w}
+func (m MDTransformer) Transform(w io.Writer, doc *Document) error {
+	m.printer = printer{w} 
 	m.printNode(doc.root)
 	// m.w.Flush()
 	return nil

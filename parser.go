@@ -13,7 +13,6 @@ import (
 	"github.com/drgo/core/ui"
 )
 
-
 type Context struct {
 	Options
 	ui.UI
@@ -22,42 +21,43 @@ type Context struct {
 func NewContext(options *Options) *Context {
 	ctx := &Context{
 		Options: *options,
-		UI:            ui.NewUI(options.Debug),
+		UI:      ui.NewUI(options.Debug),
 	}
 	return ctx
 }
 
 // Parser type for parsing MDSon files and text into a a token tree
 type Parser struct {
-	ctx *Context
+	ctx     *Context
 	lineNum int
 	line    string
 	// holds the entire document
-	doc *Document
-	node        Node
-	nextNode    Node
-	err         error
-	scanner     *bufio.Scanner
+	doc      *Document
+	node     Node
+	nextNode Node
+	err      error
+	scanner  *bufio.Scanner
 }
 
 var errEOF = errors.New("end of file")
 
 // NewParser returns an initialized MDsonParser
 // FIXME: no need to expose since parser's funcs are not exposed
-func NewParser(r io.Reader, ctx  *Context) *Parser {
+func NewParser(ctx *Context, r io.Reader) *Parser {
 	p := &Parser{
-		ctx: ctx,
-		scanner:       bufio.NewScanner(r),
-		doc:          newDocument(ctx),
+		ctx:     ctx,
+		scanner: bufio.NewScanner(r),
+		doc:     newDocument(ctx),
 	}
 	buf := make([]byte, ctx.BufferCap)
 	p.scanner.Buffer(buf, ctx.BufferCap)
 	return p
 }
 
-// ParseFile parses an MDSon source file into an a
-//TODO: merge with parse args filename, io.reader could be nil 
-//TODO: add filename field 
+// ParseFile parses an MDSon source file into an a Document
+// it reads data from the io.Reader if it is not nil.
+// otherwise it attempts to open fileName using os facilities.
+// TODO: add filename field
 func (ctx *Context) ParseFile(fileName string, r io.Reader) (*Document, error) {
 	if r == nil {
 		f, err := os.Open(fileName)
@@ -65,10 +65,10 @@ func (ctx *Context) ParseFile(fileName string, r io.Reader) (*Document, error) {
 			return throw(err)
 		}
 		defer f.Close()
-		r= f
+		r = f
 	}
-	p := NewParser(r, ctx)
-	err:= p.parse()
+	p := NewParser(ctx, r)
+	err := p.parse()
 	if err != nil {
 		return throw(fmt.Errorf("error parsing file '%s': %s", fileName, err))
 	}
@@ -76,10 +76,9 @@ func (ctx *Context) ParseFile(fileName string, r io.Reader) (*Document, error) {
 	if err != nil {
 		return throw(fmt.Errorf("error parsing file '%s': %s", fileName, err))
 	}
-	// p.doc.root = root 
+	// p.doc.path= fileName
 	return p.doc, nil
 }
-
 
 // Err return parser error state after last advance() call
 func (p *Parser) Err() error {
@@ -119,11 +118,11 @@ func (p *Parser) getNextNode() Node {
 }
 
 func (p *Parser) advance() bool {
-	p.ctx.Log("in advance(): node=", p.node, "nextNode=", p.nextNode) 
+	p.ctx.Log("in advance(): node=", p.node, "nextNode=", p.nextNode)
 	if p.nextNode != nil { //if we already peeked, use that node
 		p.node = p.nextNode
 		p.nextNode = nil
-		return true 
+		return true
 	}
 	if n := p.getNextNode(); n != nil {
 		p.node = n
@@ -154,13 +153,15 @@ func (p *Parser) setError(err error) bool {
 	return false
 }
 
-var ln =0 
+var ln = 0
+
 // parseBlock return values: false+nil=EOF, false+!nil=error,true+ nil continue
 func (p *Parser) parseBlock(parent BlockNode) bool {
 	for p.advance() {
 		if ln == p.lineNum {
-		break }
-		ln =p.lineNum
+			break
+		}
+		ln = p.lineNum
 		p.ctx.Log("after parseblock.advance()=>", p.lineNum, p.node)
 		//we must have a valid non-comment node
 		switch n := p.node.(type) {
@@ -173,7 +174,7 @@ func (p *Parser) parseBlock(parent BlockNode) bool {
 			parent.AddChild(n)
 		case *ttBlock:
 			// p.retreat()
-			return true 
+			return true
 		// if p.Debug >= DebugAll {
 		// 	fmt.Printf(`**parseblock: parent= "%s" [%d]; current %s="%s"[%d]
 		// `, parent.Key(), parent.level, "block", n.Key(), n.level)
@@ -202,7 +203,7 @@ func (p *Parser) parseBlock(parent BlockNode) bool {
 
 func (p *Parser) parseList(list *ttList) bool {
 	//we just parsed a list header
-	for p.advance(){
+	for p.advance() {
 		p.ctx.Log("after parseList.advance()=>", p.lineNum, p.node)
 		switch p.node.(type) {
 		case *ttComment: //ignore
@@ -211,7 +212,7 @@ func (p *Parser) parseList(list *ttList) bool {
 		//TODO: allow nested lists
 		default:
 			// p.retreat()
-			return true 
+			return true
 		}
 	}
 	return false //advance() failed
@@ -242,7 +243,7 @@ func (p *Parser) parseLine(line string) Node {
 		}	
 		return newTextLine(line)
 	case '~':
-		//scenario 7: a list 
+		//scenario 7: a list
 		return newList(line[1:], 0)
 	case '.':
 		colon := strings.Index(line, ":")

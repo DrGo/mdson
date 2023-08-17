@@ -10,18 +10,14 @@ import (
 
 type mom struct {
 	printer
-	cfg 
+	TransformerConfig 
 }
 
 func newMom(w io.Writer, ctx *Context) mom {
 	m:= mom{
-		cfg : newCfg(ctx),
+		TransformerConfig : DefaultTransformerConfig(),
 		printer:  printer{w: w},
 	}
-	m.listMarker= "-"
-	if m.ctx.DefaultListStyle=="ol" {
-		m.listMarker="1."
-	}	
 	return m
 }
 
@@ -36,18 +32,18 @@ func (m mom) printNode(n Node) {
 		if n.Level() > 0 { // donot print root's title
 			m.println(strings.Repeat("#", n.Level()) + " " + n.Value())
 		}
-		m.indent = strings.Repeat(" ", n.Level()* m.TabWidth)
+		m.Indent = strings.Repeat(" ", n.Level()* m.TabWidth)
 		for _, n := range n.Children() {
 			m.printNode(n)
 		}
 	case *ttList:
 		m.println(n.Value())
-		m.indent = strings.Repeat(" ", n.Level()* m.TabWidth)
+		m.Indent = strings.Repeat(" ", n.Level()* m.TabWidth)
 		for _, n := range n.Children() {
 			m.printNode(n)
 		}
 	case *ttListItem:
-		m.print(m.indent+ m.listMarker)
+		m.print(m.Indent+ m.ListMaker)
 		m.println(n.Value())
 	default:
 		m.println(n.Value())
