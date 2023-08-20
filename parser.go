@@ -59,6 +59,7 @@ func NewParser(ctx *Context, r io.Reader) *Parser {
 // otherwise it attempts to open fileName using os facilities.
 // TODO: add filename field
 func (ctx *Context) ParseFile(fileName string, r io.Reader) (*Document, error) {
+	// ctx.Log("inside mdson.ParseFile: parsing ", fileName, r)
 	if r == nil {
 		f, err := os.Open(fileName)
 		if err != nil {
@@ -69,6 +70,7 @@ func (ctx *Context) ParseFile(fileName string, r io.Reader) (*Document, error) {
 	}
 	p := NewParser(ctx, r)
 	err := p.parse()
+	ctx.Log("inside mdson.ParseFile: parsing ", fileName, err)
 	if err != nil {
 		return throw(fmt.Errorf("error parsing file '%s': %s", fileName, err))
 	}
@@ -77,6 +79,8 @@ func (ctx *Context) ParseFile(fileName string, r io.Reader) (*Document, error) {
 		return throw(fmt.Errorf("error parsing file '%s': %s", fileName, err))
 	}
 	// p.doc.path= fileName
+	// ctx.Log("exiting mdson.ParseFile", err, p.doc)
+
 	return p.doc, nil
 }
 

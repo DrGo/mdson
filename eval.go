@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/drgo/booker/tu"
 )
 
 //algorithm
@@ -14,7 +16,7 @@ import (
 // resolve using attrib map
 
 func (doc *Document) eval()  error{
-	// assert(doc!=nil, "doc is nil in eval()")
+	tu.Assert(doc!=nil, "doc is nil in eval()")
 	if err:= doc.evalAllAttribs(doc.root); err!=nil {
 		return err 
 	}
