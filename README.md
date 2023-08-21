@@ -34,7 +34,7 @@ standard fields include:
 authors = []
 
 // The taxonomies for this page. The keys need to be the same as the taxonomy
-// names configured in `config.toml` and the values are an array of String objects. For example,
+// names configured in `config.mdson` and the values are an array of String objects. For example,
 // tags = ["rust", "web"].
 - taxa
 - descriptors

@@ -42,6 +42,9 @@ date {today}
 
 The most important cause of CHF is {chapter.chf[1]}
 {chapter1.chf[1]} 
+## paragraphs 
+>A paragraph is consecutive lines of text with one or more blank lines between them.
+>For a line break, add either a backslash \ or two blank spaces at the end of the line.
 
 see @Figxxx --> See Figure 100 
 // A list starts with ~ and continues until the next non-list item element 
