@@ -1,5 +1,5 @@
 // This function gets your whole document as its `body` and formats
-// it as a simple fiction book.
+// it as a book.
 #let book(
   // The book's title.
   title: "Book title",
